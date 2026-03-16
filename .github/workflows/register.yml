@@ -1,0 +1,51 @@
+name: ARM Auto Registration
+
+# 觸發條件設定
+on:
+  schedule:
+    # 這裡的 cron 設定每 30 分鐘執行一次 (注意：Github Actions 由於資源排隊，可能會有延遲)
+    - cron: '*/30 * * * *'
+  # 允許使用者在 GitHub Actions 頁面手動觸發流程
+  workflow_dispatch:
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      # 步驟 1：檢出原始碼
+      - uses: actions/checkout@v4
+      
+      # 步驟 2：設定 Python 執行環境
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          # 使用 pip 快取，以加速後續的執行時間
+          cache: 'pip' 
+
+      # 步驟 3：安裝所需的 Python 套件 (OCI SDK 和 requests)
+      - name: Install dependencies
+        run: pip install oci requests
+
+      # 步驟 4：執行申請的主要腳本，並載入所有需要的環境變數
+      - name: Run Script
+        env:
+          # 將 GitHub Secrets 透過環境變數傳入至 Python 中
+          OCI_CONFIG_USER: ${{ secrets.OCI_CONFIG_USER }}
+          OCI_CONFIG_KEY_CONTENT: ${{ secrets.OCI_CONFIG_KEY_CONTENT }}
+          OCI_CONFIG_FINGERPRINT: ${{ secrets.OCI_CONFIG_FINGERPRINT }}
+          OCI_CONFIG_TENANCY: ${{ secrets.OCI_CONFIG_TENANCY }}
+          OCI_CONFIG_REGION: ${{ secrets.OCI_CONFIG_REGION }}
+          OCI_COMPARTMENT_ID: ${{ secrets.OCI_COMPARTMENT_ID }}
+          OCI_IMAGE_ID: ${{ secrets.OCI_IMAGE_ID }}
+          OCI_SUBNET_ID: ${{ secrets.OCI_SUBNET_ID }}
+          LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: python oracle_arm_manager.py
+
+      # 步驟 5：記錄每次執行的狀態 (可用於統計成功與失敗次數)
+      - name: Log status for summary
+        run: |
+          mkdir -p logs
+          # 將執行日期紀錄進檔案中，日後可與 result.txt 結合做進一步統計
+          date +%Y-%m-%d >> logs/attempts.log
