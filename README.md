@@ -46,6 +46,7 @@
 | `OCI_CONFIG_FINGERPRINT` | API Key 的指紋碼 |
 | `OCI_CONFIG_TENANCY` | 租戶 OCID |
 | `OCI_COMPARTMENT_ID` | Compartment OCID |
+| `OCI_SSH_KEY` | SSH 公鑰完整內容 (例如：`ssh-rsa AAAAB3Nza...`) |
 | `LINE_ACCESS_TOKEN` | LINE Messaging API 的長效 Access Token |
 | `LINE_USER_ID` | 接收訊息的 Line User ID |
 

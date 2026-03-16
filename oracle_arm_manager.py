@@ -64,7 +64,7 @@ def launch_instance() -> bool:
     required_vars = [
         "OCI_CONFIG_USER", "OCI_CONFIG_KEY_CONTENT", "OCI_CONFIG_FINGERPRINT",
         "OCI_CONFIG_TENANCY", "OCI_CONFIG_REGION",
-        "OCI_COMPARTMENT_ID", "OCI_IMAGE_ID", "OCI_SUBNET_ID",
+        "OCI_COMPARTMENT_ID", "OCI_IMAGE_ID", "OCI_SUBNET_ID", "OCI_SSH_KEY",
     ]
     missing = [v for v in required_vars if not os.getenv(v)]
     if missing:
@@ -96,15 +96,21 @@ def launch_instance() -> bool:
         print(f"Attempting to launch in {ad.name} with {ocpus} OCPUs, {memory_in_gbs}GB RAM, and {boot_volume_size_in_gbs}GB Boot Volume...")
         try:
             # 設定準備申請的 ARM VM 相關資訊
+            # 依據提供的手動 JSON 屬性，我們加入 metadata (SSH Key)
             launch_details = oci.core.models.LaunchInstanceDetails(
-                display_name="Oracle-ARM-Auto",
+                display_name="oracle-arm-auto",
                 compartment_id=os.getenv("OCI_COMPARTMENT_ID"),
                 availability_domain=ad.name,
                 shape="VM.Standard.A1.Flex",
                 shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=ocpus, memory_in_gbs=memory_in_gbs),
                 source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=os.getenv("OCI_IMAGE_ID"), boot_volume_size_in_gbs=boot_volume_size_in_gbs),
-                create_vnic_details=oci.core.models.CreateVnicDetails(subnet_id=os.getenv("OCI_SUBNET_ID")),
-                assign_public_ip=True
+                create_vnic_details=oci.core.models.CreateVnicDetails(
+                    subnet_id=os.getenv("OCI_SUBNET_ID"),
+                    assign_public_ip=True
+                ),
+                metadata={
+                    "ssh_authorized_keys": os.getenv("OCI_SSH_KEY")
+                }
             )
             
             # 開始送出建立要求
