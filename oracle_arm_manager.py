@@ -60,6 +60,16 @@ def launch_instance() -> bool:
     print(f"Random delay: {delay} seconds...")
     time.sleep(delay)
 
+    # 驗證必要的環境變數是否都已設定，若有缺少則提前終止並明確指出問題
+    required_vars = [
+        "OCI_CONFIG_USER", "OCI_CONFIG_KEY_CONTENT", "OCI_CONFIG_FINGERPRINT",
+        "OCI_CONFIG_TENANCY", "OCI_CONFIG_REGION",
+        "OCI_COMPARTMENT_ID", "OCI_IMAGE_ID", "OCI_SUBNET_ID",
+    ]
+    missing = [v for v in required_vars if not os.getenv(v)]
+    if missing:
+        raise EnvironmentError(f"Missing required environment variables: {', '.join(missing)}")
+
     # 讀取系統環境變數設定 OCI 設定檔 (這些通常在 Github Actions Secret 中配置)
     config = {
         "user": os.getenv("OCI_CONFIG_USER"),
