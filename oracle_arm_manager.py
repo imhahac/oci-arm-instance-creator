@@ -76,13 +76,14 @@ def launch_instance() -> bool:
     # 透過租戶區塊 ID (Compartment ID) 獲取所有可用區 (Availability Domain / AD)
     ads = identity_client.list_availability_domains(os.getenv("OCI_COMPARTMENT_ID")).data
     
-    # 從環境變數讀取規格配置，若未設定則使用預設值 (4 OCPU, 24GB RAM)
+    # 從環境變數讀取規格配置，若未設定則使用預設值 (4 OCPU, 24GB RAM, 50GB Boot Volume)
     ocpus = int(os.getenv("OCI_OCPUS", 4))
     memory_in_gbs = int(os.getenv("OCI_MEMORY_GBS", 24))
+    boot_volume_size_in_gbs = int(os.getenv("OCI_BOOT_VOLUME_SIZE", 50))
     
     # 輪詢每一個可用區嘗試部署 ARM VM
     for ad in ads:
-        print(f"Attempting to launch in {ad.name} with {ocpus} OCPUs and {memory_in_gbs}GB RAM...")
+        print(f"Attempting to launch in {ad.name} with {ocpus} OCPUs, {memory_in_gbs}GB RAM, and {boot_volume_size_in_gbs}GB Boot Volume...")
         try:
             # 設定準備申請的 ARM VM 相關資訊
             launch_details = oci.core.models.LaunchInstanceDetails(
@@ -91,7 +92,7 @@ def launch_instance() -> bool:
                 availability_domain=ad.name,
                 shape="VM.Standard.A1.Flex",
                 shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=ocpus, memory_in_gbs=memory_in_gbs),
-                source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=os.getenv("OCI_IMAGE_ID")),
+                source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=os.getenv("OCI_IMAGE_ID"), boot_volume_size_in_gbs=boot_volume_size_in_gbs),
                 create_vnic_details=oci.core.models.CreateVnicDetails(subnet_id=os.getenv("OCI_SUBNET_ID")),
                 assign_public_ip=True
             )

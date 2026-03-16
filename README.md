@@ -46,6 +46,9 @@
 | `OCI_COMPARTMENT_ID` | Compartment OCID |
 | `OCI_IMAGE_ID` | 系統版本 Image OCID |
 | `OCI_SUBNET_ID` | 伺服器要使用的 Subnet OCID |
+| `OCI_OCPUS` | (選填) OCPU 數量，預設為 4。 |
+| `OCI_MEMORY_GBS` | (選填) 記憶體大小 (GB)，預設為 24。 |
+| `OCI_BOOT_VOLUME_SIZE` | (選填) 開機磁碟大小 (GB)，預設為 50。 |
 | `LINE_ACCESS_TOKEN` | LINE Messaging API 的長效 Access Token |
 | `LINE_USER_ID` | 接收訊息的 Line User ID |
 

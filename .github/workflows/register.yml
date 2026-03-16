@@ -39,6 +39,7 @@ jobs:
           OCI_SUBNET_ID: ${{ secrets.OCI_SUBNET_ID }}
           OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
           OCI_MEMORY_GBS: ${{ secrets.OCI_MEMORY_GBS }}
+          OCI_BOOT_VOLUME_SIZE: ${{ secrets.OCI_BOOT_VOLUME_SIZE }}
           LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: python oracle_arm_manager.py
