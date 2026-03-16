@@ -33,27 +33,36 @@
 - **Image ID**：前往 Compute -> Instances -> Create Instance，選擇你要安裝的 Image (通常為 Oracle Linux 或 Ubuntu ARM 版本)，這會是 `OCI_IMAGE_ID`。
 - **Subnet ID**：進入 Networking -> Virtual Cloud Networks -> 選擇 VCN，然後進入你要綁定的 Subnet 頁面，獲取 `OCI_SUBNET_ID`。
 
-### 4. 設定 GitHub Secrets
-進入您的專案庫 (Repository) -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**，將以下的參數一行一行新增進去：
+### 4. 設定 GitHub Secrets 與 Variables
+進入您的專案庫 (Repository) -> **Settings** -> **Secrets and variables** -> **Actions**
 
-| 變數名稱 (Secret Name) | 說明 (Description) |
+#### 🔐 Secrets（機密資訊：帳號/金鑰）
+點選 **Secrets** 標籤 -> **New repository secret**：
+
+| 名稱 | 說明 |
 | --- | --- |
-| `OCI_CONFIG_USER` | 會員 OCID。 |
-| `OCI_CONFIG_KEY_CONTENT` | 剛剛下載的 `.pem` 私鑰的完整文字內容。 |
-| `OCI_CONFIG_FINGERPRINT` | API Key 的指紋碼。 |
-| `OCI_CONFIG_TENANCY` | 租戶 OCID。 |
-| `OCI_CONFIG_REGION` | 區域標記，如: ap-osaka-1 |
+| `OCI_CONFIG_USER` | 使用者 OCID |
+| `OCI_CONFIG_KEY_CONTENT` | 下載的 `.pem` 私鑰完整文字內容 |
+| `OCI_CONFIG_FINGERPRINT` | API Key 的指紋碼 |
+| `OCI_CONFIG_TENANCY` | 租戶 OCID |
 | `OCI_COMPARTMENT_ID` | Compartment OCID |
-| `OCI_IMAGE_ID` | 系統版本 Image OCID |
-| `OCI_SUBNET_ID` | 伺服器要使用的 Subnet OCID |
-| `OCI_OCPUS` | (選填) OCPU 數量，預設為 4。 |
-| `OCI_MEMORY_GBS` | (選填) 記憶體大小 (GB)，預設為 24。 |
-| `OCI_BOOT_VOLUME_SIZE` | (選填) 開機磁碟大小 (GB)，預設為 50。 |
 | `LINE_ACCESS_TOKEN` | LINE Messaging API 的長效 Access Token |
 | `LINE_USER_ID` | 接收訊息的 Line User ID |
 
+#### ⚙️ Variables（非機密設定值）
+點選 **Variables** 標籤 -> **New repository variable**：
+
+| 名稱 | 說明 | 範例 |
+| --- | --- | --- |
+| `OCI_CONFIG_REGION` | OCI 區域標記 | `ap-osaka-1` |
+| `OCI_IMAGE_ID` | 系統版本 Image OCID | `ocid1.image.oc1...` |
+| `OCI_SUBNET_ID` | 伺服器要使用的 Subnet OCID | `ocid1.subnet.oc1...` |
+| `OCI_OCPUS` | OCPU 數量 (Always Free 上限為 4) | `4` |
+| `OCI_MEMORY_GBS` | 記憶體大小 GB (Always Free 上限為 24) | `24` |
+| `OCI_BOOT_VOLUME_SIZE` | 開機磁碟大小 GB | `50` |
+
 ### 5. 執行自動化排程
-當設定好 Secrets 後，請前往倉庫上方的 **Actions** 分頁點開：
+當設定好 Secrets 與 Variables 後，請前往倉庫上方的 **Actions** 分頁點開：
 1. **ARM Auto Registration** -> 點擊 `Run workflow` 手動觸發看一次是否設定正確並開始運行，之後每 30 分鐘就會自動執行。
 2. 你會同時看到 **Daily Report** 確保每天的 0:00 發送回報訊息。
 

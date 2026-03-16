@@ -28,20 +28,21 @@ jobs:
       # 步驟 4：執行申請的主要腳本，並載入所有需要的環境變數
       - name: Run Script
         env:
-          # 將 GitHub Secrets 透過環境變數傳入至 Python 中
+          # --- Secrets：帳號/金鑰等機密資訊 ---
           OCI_CONFIG_USER: ${{ secrets.OCI_CONFIG_USER }}
           OCI_CONFIG_KEY_CONTENT: ${{ secrets.OCI_CONFIG_KEY_CONTENT }}
           OCI_CONFIG_FINGERPRINT: ${{ secrets.OCI_CONFIG_FINGERPRINT }}
           OCI_CONFIG_TENANCY: ${{ secrets.OCI_CONFIG_TENANCY }}
-          OCI_CONFIG_REGION: ${{ secrets.OCI_CONFIG_REGION }}
           OCI_COMPARTMENT_ID: ${{ secrets.OCI_COMPARTMENT_ID }}
-          OCI_IMAGE_ID: ${{ secrets.OCI_IMAGE_ID }}
-          OCI_SUBNET_ID: ${{ secrets.OCI_SUBNET_ID }}
-          OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
-          OCI_MEMORY_GBS: ${{ secrets.OCI_MEMORY_GBS }}
-          OCI_BOOT_VOLUME_SIZE: ${{ secrets.OCI_BOOT_VOLUME_SIZE }}
           LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          # --- Variables：非機密設定值 ---
+          OCI_CONFIG_REGION: ${{ vars.OCI_CONFIG_REGION }}
+          OCI_IMAGE_ID: ${{ vars.OCI_IMAGE_ID }}
+          OCI_SUBNET_ID: ${{ vars.OCI_SUBNET_ID }}
+          OCI_OCPUS: ${{ vars.OCI_OCPUS }}
+          OCI_MEMORY_GBS: ${{ vars.OCI_MEMORY_GBS }}
+          OCI_BOOT_VOLUME_SIZE: ${{ vars.OCI_BOOT_VOLUME_SIZE }}
         run: python oracle_arm_manager.py
 
       # 步驟 5：記錄每次執行的狀態 (可用於統計成功與失敗次數)
