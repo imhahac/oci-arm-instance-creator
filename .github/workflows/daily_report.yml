@@ -15,7 +15,7 @@ jobs:
         run: |
           # 這裡計算一天的排程次數 (若每 30 分鐘一次，一天即約 48 次)
           ATTEMPTS=48 
-          MSG="📅 每日回報：今日嘗試次數約 $ATTEMPTS 次，目前狀態：資源仍不足，持續監控中。"
+          MSG="📅 每日回報：今日嘗試次數約 $ATTEMPTS 次，目前狀態：資源仍不足，持續監控中。\n📌 來源：GitHub Actions (${{ github.workflow }})\n🔗 Run ID: ${{ github.run_id }}"
           
           # 將訊息透過 HTTP POST 請求傳給 LINE Messaging API
           curl -X POST https://api.line.me/v2/bot/message/push \

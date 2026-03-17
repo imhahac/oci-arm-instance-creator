@@ -14,6 +14,7 @@ def send_line_push(title: str, content: str, is_success: bool = False):
         title (str): 訊息的標題（例如：「✅ Oracle ARM 成功開通」）。
         content (str): 要顯示的主要文字內容。
         is_success (bool): 狀態標記，成功為 True (顯示綠燈顏色)，失敗預設為 False (顯示紅燈顏色)。
+        github_context (str, optional): 附加的 Github Action 執行環境資訊網址。
     """
     url = "https://api.line.me/v2/bot/message/push"
     headers = {
@@ -36,7 +37,18 @@ def send_line_push(title: str, content: str, is_success: bool = False):
                 },
                 "body": {
                     "type": "box", "layout": "vertical",
-                    "contents": [{"type": "text", "text": content, "wrap": True, "size": "sm"}]
+                    "contents": [
+                        {"type": "text", "text": content, "wrap": True, "size": "sm"},
+                        {"type": "separator", "margin": "md"},
+                        {
+                            "type": "text", "text": f"📌 來源：GitHub Actions ({os.getenv('GITHUB_WORKFLOW', 'Unknown Workflow')})",
+                            "wrap": True, "size": "xs", "color": "#888888", "margin": "md"
+                        },
+                        {
+                            "type": "text", "text": f"🔗 Run ID: {os.getenv('GITHUB_RUN_ID', 'N/A')}",
+                            "wrap": True, "size": "xs", "color": "#888888"
+                        }
+                    ]
                 }
             }
         }]
@@ -134,6 +146,9 @@ def launch_instance() -> bool:
             else:
                 # 其它非預期的錯誤 (例如驗證失敗，配額不足等)
                 print(f"Error: {e.message}")
+                # 可選：若想收到錯誤通知，可將下列兩行取消註解
+                # error_msg = f"❌ 嘗試建立 {ad.name} 時發生非預期的錯誤：\n{e.message}"
+                # send_line_push("⚠️ Oracle ARM 錯誤", error_msg, is_success=False)
     
     # 如果全部的可用區都開不出來則回傳不成功
     return False
