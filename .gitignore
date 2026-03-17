@@ -21,3 +21,8 @@ Thumbs.db
 # Project specific logs or temp files
 *.log
 tmp/
+result.txt
+logs/
+
+# OCI Private Keys
+*.pem

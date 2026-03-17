@@ -6,6 +6,11 @@ on:
     # 這裡設定時間為每天 UTC 16:00 (等同台灣時間隔日的凌晨 0:00)
     - cron: '0 16 * * *'
 
+# 控制併發：確保同一時間只有一個申請任務執行
+concurrency:
+  group: register-arm
+  cancel-in-progress: false
+
 jobs:
   report:
     runs-on: ubuntu-latest

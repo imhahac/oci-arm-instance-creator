@@ -8,9 +8,18 @@ on:
   # 允許使用者在 GitHub Actions 頁面手動觸發流程
   workflow_dispatch:
 
+# 控制併發：確保同一時間只有一個申請任務執行
+concurrency:
+  group: register-arm
+  cancel-in-progress: false
+
 jobs:
   register:
     runs-on: ubuntu-latest
+    # 提供 GitHub 關閉 workflow 所需的權限
+    permissions:
+      actions: write
+      contents: read
     steps:
       # 步驟 1：檢出原始碼
       - uses: actions/checkout@v4
@@ -37,6 +46,9 @@ jobs:
           OCI_SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
           LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           # --- Variables：非機密設定值 ---
           OCI_CONFIG_REGION: ${{ vars.OCI_CONFIG_REGION }}
           OCI_IMAGE_ID: ${{ vars.OCI_IMAGE_ID }}
@@ -44,6 +56,8 @@ jobs:
           OCI_OCPUS: ${{ vars.OCI_OCPUS }}
           OCI_MEMORY_GBS: ${{ vars.OCI_MEMORY_GBS }}
           OCI_BOOT_VOLUME_SIZE: ${{ vars.OCI_BOOT_VOLUME_SIZE }}
+          OCI_BOOT_VOLUME_VPUS_PER_GB: ${{ vars.OCI_BOOT_VOLUME_VPUS_PER_GB }}
+          OCI_MAX_INSTANCES: ${{ vars.OCI_MAX_INSTANCES }}
         run: python oracle_arm_manager.py
 
       # 步驟 5：記錄每次執行的狀態 (可用於統計成功與失敗次數)
@@ -52,3 +66,35 @@ jobs:
           mkdir -p logs
           # 將執行日期紀錄進檔案中，日後可與 result.txt 結合做進一步統計
           date +%Y-%m-%d >> logs/attempts.log
+
+      # 步驟 6：寫入 GitHub Actions Job Summary 儀表板
+      - name: Generate Job Summary
+        run: |
+          echo "## 🚀 OCI ARM Deployment Status" >> $GITHUB_STEP_SUMMARY
+          if [ -f result.txt ]; then
+            RESULT=$(cat result.txt)
+            if [ "$RESULT" = "success" ]; then
+              echo "### 🟢 Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+              echo "The oracle-arm-auto instance was successfully configured or limits were reached." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "### 🔴 Status: OUT OF CAPACITY / ERROR" >> $GITHUB_STEP_SUMMARY
+              echo "Regions were checked but returned out of capacity or encountered service errors." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+             echo "### ⚠️ Status: UNKNOWN" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # 步驟 7：如果註冊成功，自動停止未來的排程，避免繼續浪費資源
+      - name: Auto-stop workflow on success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f result.txt ]; then
+            RESULT=$(cat result.txt)
+            if [ "$RESULT" = "success" ]; then
+              echo "✅ Instance created successfully! Disabling this workflow to save resources."
+              gh workflow disable "ARM Auto Registration"
+            else
+              echo "⚠️ Failed to create instance. Workflow remains active."
+            fi
+          fi
