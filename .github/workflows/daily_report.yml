@@ -6,7 +6,7 @@ on:
     # 這裡設定時間為每天 UTC 16:00 (等同台灣時間隔日的凌晨 0:00)
     - cron: '0 16 * * *'
 
-# 控制併發：確保同一時間只有一個申請任務執行
+# 共用相同的 concurrency group，避免和 register 同時執行
 concurrency:
   group: register-arm
   cancel-in-progress: false
@@ -15,15 +15,29 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      # 步驟 1：發送每日執行次數回報到 LINE
+      # 步驟 1：發送每日回報至所有已設定的通知平台
       - name: Send Daily Summary
         run: |
-          # 這裡計算一天的排程次數 (若每 30 分鐘一次，一天即約 48 次)
-          ATTEMPTS=48 
-          MSG="📅 每日回報：今日嘗試次數約 $ATTEMPTS 次，目前狀態：資源仍不足，持續監控中。\n📌 來源：GitHub Actions (${{ github.workflow }})\n🔗 Run ID: ${{ github.run_id }}"
-          
-          # 將訊息透過 HTTP POST 請求傳給 LINE Messaging API
-          curl -X POST https://api.line.me/v2/bot/message/push \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer ${{ secrets.LINE_ACCESS_TOKEN }}" \
-          -d "{\"to\": \"${{ secrets.LINE_USER_ID }}\", \"messages\": [{\"type\": \"text\", \"text\": \"$MSG\"}]}"
+          DATE=$(date '+%Y-%m-%d %H:%M UTC')
+          MSG="📅 每日監控回報 ($DATE)\n\n目前狀態：資源仍不足，持續每 30 分鐘自動嘗試申請中。\n\n📌 來源：GitHub Actions (${{ github.workflow }})\n🔗 Run ID: ${{ github.run_id }}"
+
+          # LINE 通知
+          if [ -n "${{ secrets.LINE_ACCESS_TOKEN }}" ] && [ -n "${{ secrets.LINE_USER_ID }}" ]; then
+            curl -s -X POST https://api.line.me/v2/bot/message/push \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${{ secrets.LINE_ACCESS_TOKEN }}" \
+              -d "{\"to\": \"${{ secrets.LINE_USER_ID }}\", \"messages\": [{\"type\": \"text\", \"text\": \"$MSG\"}]}"
+          fi
+
+          # Telegram 通知
+          if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] && [ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=$MSG"
+          fi
+
+          # Discord 通知
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"$MSG\"}"
+          fi

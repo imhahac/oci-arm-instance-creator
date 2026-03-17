@@ -181,13 +181,16 @@ def launch_instance() -> bool:
                 }
             )
             
-            # 加入固定重試邏輯，避免短暫的網路波動
-            retries = 3
+            # 每個 AD 只重試「非容量不足」的短暫錯誤 (例如短暫網路波動)
+            # 注意：容量不足 (Out of capacity / Out of host capacity) 絕對不重試，直接換 AD
+            # 重試等待 30 秒，避免觸發 OCI 的 Rate Limit (Too many requests)
+            CAPACITY_KEYWORDS = ["capacity", "quota", "limit"]
+            retries = 2
             for attempt in range(retries):
                 try:
                     res = compute_client.launch_instance(launch_details).data
                     
-                    # 成功擷取 IP
+                    # 成功擷取 IP，立即發送通知
                     vnic_id = compute_client.list_vnic_attachments(compartment_id, instance_id=res.id).data[0].vnic_id
                     vnic = oci.core.VirtualNetworkClient(config).get_vnic(vnic_id).data
                     public_ip = vnic.public_ip
@@ -197,17 +200,29 @@ def launch_instance() -> bool:
                     return True
                     
                 except oci.exceptions.ServiceError as e:
-                    if "Out of capacity" in e.message:
-                        print(f"Capacity full in {ad.name}")
-                        break # 容量不足無需重試，直接換下一個 AD
-                    else:
-                        print(f"Error [{attempt+1}/{retries}]: {e.message}")
+                    # 檢查是否為容量相關拒絕 (OCI 可能回傳不同措辭)
+                    msg_lower = e.message.lower() if e.message else ""
+                    is_capacity_error = any(kw in msg_lower for kw in CAPACITY_KEYWORDS)
+                    
+                    if is_capacity_error:
+                        # 容量不足：立即換到下一個 AD，不重試
+                        print(f"Capacity full in {ad.name}: {e.message}")
+                        break
+                    elif "too many requests" in msg_lower:
+                        # Rate Limit：等比較久再試一次
+                        print(f"Rate limited. Waiting 60s before retry [{attempt+1}/{retries}]")
                         if attempt < retries - 1:
-                            time.sleep(5) # 等待 5 秒後重試
+                            time.sleep(60)
                         else:
-                            # 發送嚴重錯誤通知
-                            error_msg = f"❌ 建立失敗 ({ad.name}):\n{e.message}"
-                            send_notification("⚠️ Oracle ARM 錯誤", error_msg, is_success=False)
+                            break
+                    else:
+                        # 其他短暫錯誤：等 30 秒重試
+                        print(f"Transient error [{attempt+1}/{retries}]: {e.message}")
+                        if attempt < retries - 1:
+                            time.sleep(30)
+                        else:
+                            # 僅記錄 log，不發送通知 (失敗集中在每日報告發送)
+                            print(f"All retries failed for {ad.name}, moving on.")
                             break
                             
     # 如果全區全可用區都沒開出來
