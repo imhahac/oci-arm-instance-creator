@@ -170,7 +170,10 @@ def launch_instance() -> bool:
         return False
 
     compartment_id = os.getenv("OCI_COMPARTMENT_ID")
-    # ... (省略中間不變部分)
+    ocpus = float(os.getenv("OCI_OCPUS", 4))
+    memory_in_gbs = float(os.getenv("OCI_MEMORY_GBS", 24))
+    boot_volume_size_in_gbs = int(os.getenv("OCI_BOOT_VOLUME_SIZE", 50))
+    boot_volume_vpus_per_gb = int(os.getenv("OCI_BOOT_VOLUME_VPUS_PER_GB", 10))
     initial_compute_client = oci.core.ComputeClient(base_config)
     
     active_count = check_active_instances(initial_compute_client, compartment_id)
