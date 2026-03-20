@@ -1,4 +1,5 @@
 import os
+import oci
 import time
 import requests
 from datetime import datetime, timedelta
@@ -103,7 +104,7 @@ def check_budget_usage(config) -> bool:
         # 設定查詢區間：本月 1 號到明天 (確保涵蓋今天)
         now = datetime.utcnow()
         first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        tomorrow = now + timedelta(days=1)
+        tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         
         request_details = RequestSummarizedUsagesDetails(
             tenant_id=config["tenancy"],
