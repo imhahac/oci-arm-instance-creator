@@ -21,12 +21,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # 統計過去 24 小時內 register.yml 的失敗次數
-          FAIL_COUNT=$(gh run list --workflow register.yml --status failure --limit 100 --json createdAt | jq '[.[] | select(.createdAt > (now - 86400 | strftime("%Y-%m-%dT%H:%M:%SZ")))] | length')
-          
+          # 修正：先用 shell 計算 24 小時前的 ISO 8601 時間字串，
+          # 再傳給 jq 做字串比較，避免 jq 混用 Unix timestamp 與 ISO 8601 的問題
+          SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+          FAIL_COUNT=$(gh run list --workflow register.yml --status failure --limit 100 --json createdAt \
+            | jq --arg since "$SINCE" '[.[] | select(.createdAt > $since)] | length')
+
           DATE=$(date '+%Y-%m-%d %H:%M UTC')
           REPO="${{ github.repository }}"
           ACTOR="${{ github.actor }}"
-          
+
           MSG="📅 每日監控回報 ($DATE)\n\n目前狀態：資源仍不足，持續嘗試中。\n❌ 今日失敗嘗試：$FAIL_COUNT 次\n\n👤 執行帳號：$ACTOR\n📂 來源：$REPO\n🔗 Run ID: ${{ github.run_id }}"
 
           # LINE 通知
