@@ -75,10 +75,18 @@ jobs:
             RESULT=$(cat result.txt)
             if [ "$RESULT" = "success" ]; then
               echo "### 🟢 Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
-              echo "The oracle-arm-auto instance was successfully configured or limits were reached." >> $GITHUB_STEP_SUMMARY
             else
-              echo "### 🔴 Status: OUT OF CAPACITY / ERROR" >> $GITHUB_STEP_SUMMARY
-              echo "Regions were checked but returned out of capacity or encountered service errors." >> $GITHUB_STEP_SUMMARY
+              echo "### 🔴 Status: OUT OF CAPACITY / ERROR / BUDGET LIMIT" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 📝 Execution Log" >> $GITHUB_STEP_SUMMARY
+            echo "| Region | Availability Domain | Result |" >> $GITHUB_STEP_SUMMARY
+            echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+            if [ -f detailed_log.txt ]; then
+              cat detailed_log.txt >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| N/A | N/A | No detailed logs available |" >> $GITHUB_STEP_SUMMARY
             fi
           else
              echo "### ⚠️ Status: UNKNOWN" >> $GITHUB_STEP_SUMMARY
