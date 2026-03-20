@@ -1,6 +1,8 @@
 import os
 import oci
 import time
+import random
+import string
 import requests
 from datetime import datetime, timedelta
 from oci.usage_api import UsageapiClient
@@ -84,10 +86,11 @@ def check_active_instances(compute_client, compartment_id) -> int:
         instances = compute_client.list_instances(compartment_id).data
         count = 0
         for inst in instances:
-            # 計算名稱相同且狀態不是 TERMINATED / TERMINATING 的機器
-            if inst.display_name == "oracle-arm-auto" and inst.lifecycle_state in ["RUNNING", "PROVISIONING"]:
+            # 計算名稱中包含 "oracle-arm-auto" 且狀態不是 TERMINATED / TERMINATING 的機器
+            if inst.display_name and inst.display_name.startswith("oracle-arm-auto") and \
+               inst.lifecycle_state in ["RUNNING", "PROVISIONING"]:
                 count += 1
-        return 0
+        return count
     except Exception as e:
         print(f"檢查現有實例失敗: {e}")
         return 0
@@ -138,6 +141,12 @@ def launch_instance() -> bool:
     - 數量限制 (Max Instances)：檢查目前機器數量是否達到 OCI_MAX_INSTANCES 限制。
     - 指數退避與重試邏輯：有效處理網路或短暫錯誤。
     """
+    # --- 隨機延遲 (Jitter) ---
+    # 避免 GitHub Actions 規律性請求，加入 0-60 秒隨機延遲
+    jitter = random.uniform(0, 60)
+    print(f"⏳ 隨機延遲 {jitter:.2f} 秒，避開規律偵測...")
+    time.sleep(jitter)
+
     required_vars = [
         "OCI_CONFIG_USER", "OCI_CONFIG_KEY_CONTENT", "OCI_CONFIG_FINGERPRINT",
         "OCI_CONFIG_TENANCY", "OCI_COMPARTMENT_ID", "OCI_SSH_KEY",
@@ -199,10 +208,12 @@ def launch_instance() -> bool:
             continue
             
         for ad in ads:
-            log_step(region, ad.name, "Attempting...")
+            random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=5))
+            display_name = f"oracle-arm-auto-{random_suffix}"
+            log_step(region, ad.name, f"Attempting (Name: {display_name})...")
             
             launch_details = oci.core.models.LaunchInstanceDetails(
-                display_name="oracle-arm-auto",
+                display_name=display_name,
                 compartment_id=compartment_id,
                 availability_domain=ad.name,
                 shape="VM.Standard.A1.Flex",
@@ -231,7 +242,8 @@ def launch_instance() -> bool:
                     public_ip = vnic.public_ip
                     
                     log_step(region, ad.name, f"🚀 Success (IP: {public_ip})")
-                    msg = f"🚀 註冊成功！\n📍 IP: {public_ip}\n🔑 帳號: ubuntu / opc\n🏢 區域: {ad.name}\n總數量: {active_count + 1}/{max_instances}"
+                    idle_tip = "\n\n💡 提示：OCI 規定閒置實例可能會被收回。建議在機器上執行一些背景任務 (如 Docker 或微型腳本) 將 CPU 使用率維持在 10% 以上。"
+                    msg = f"🚀 註冊成功！\n📍 IP: {public_ip}\n🔑 帳號: ubuntu / opc\n🏢 區域: {ad.name}\n總數量: {active_count + 1}/{max_instances}{idle_tip}"
                     send_notification("✅ Oracle ARM 成功開通", msg, is_success=True)
                     
                     with open("detailed_log.txt", "w", encoding="utf-8") as f:
