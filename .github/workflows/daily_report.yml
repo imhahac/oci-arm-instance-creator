@@ -24,8 +24,8 @@ jobs:
           # 修正：先用 shell 計算 24 小時前的 ISO 8601 時間字串，
           # 再傳給 jq 做字串比較，避免 jq 混用 Unix timestamp 與 ISO 8601 的問題
           SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
-          FAIL_COUNT=$(gh run list --workflow register.yml --status failure --limit 100 --json createdAt \
-            | jq --arg since "$SINCE" '[.[] | select(.createdAt > $since)] | length')
+          FAIL_COUNT=$(gh run list --repo "${{ github.repository }}" --workflow register.yml --status failure --limit 100 --json createdAt \
+            | jq --arg since "$SINCE" '[.[] | select(.createdAt > $since)] | length' 2>/dev/null || echo "0")
 
           DATE=$(date '+%Y-%m-%d %H:%M UTC')
           REPO="${{ github.repository }}"
