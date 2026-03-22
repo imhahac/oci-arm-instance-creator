@@ -11,6 +11,11 @@ concurrency:
   group: register-arm
   cancel-in-progress: false
 
+# 加入權限設定，允許 gh CLI 定義讀取 Actions 記錄
+permissions:
+  actions: read
+  contents: read
+
 jobs:
   report:
     runs-on: ubuntu-latest
