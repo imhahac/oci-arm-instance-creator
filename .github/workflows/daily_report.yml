@@ -29,14 +29,24 @@ jobs:
           # 修正：先用 shell 計算 24 小時前的 ISO 8601 時間字串，
           # 再傳給 jq 做字串比較，避免 jq 混用 Unix timestamp 與 ISO 8601 的問題
           SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+
+          # register.yml 過去 24h 失敗次數
           FAIL_COUNT=$(gh run list --repo "${{ github.repository }}" --workflow register.yml --status failure --limit 100 --json createdAt \
+            | jq --arg since "$SINCE" '[.[] | select(.createdAt > $since)] | length' 2>/dev/null || echo "0")
+
+          # daily_report.yml 過去 24h 總執行次數（所有狀態）
+          RUN_COUNT=$(gh run list --repo "${{ github.repository }}" --workflow daily_report.yml --limit 100 --json createdAt \
+            | jq --arg since "$SINCE" '[.[] | select(.createdAt > $since)] | length' 2>/dev/null || echo "0")
+
+          # daily_report.yml 過去 24h 失敗次數
+          NOTIFY_FAIL_COUNT=$(gh run list --repo "${{ github.repository }}" --workflow daily_report.yml --status failure --limit 100 --json createdAt \
             | jq --arg since "$SINCE" '[.[] | select(.createdAt > $since)] | length' 2>/dev/null || echo "0")
 
           DATE=$(date '+%Y-%m-%d %H:%M UTC')
           REPO="${{ github.repository }}"
           ACTOR="${{ github.actor }}"
 
-          MSG="📅 每日監控回報 ($DATE)\n\n目前狀態：資源仍不足，持續嘗試中。\n❌ 今日失敗嘗試：$FAIL_COUNT 次\n\n👤 執行帳號：$ACTOR\n📂 來源：$REPO\n🔗 Run ID: ${{ github.run_id }}"
+          MSG="📅 每日監控回報 ($DATE)\n\n目前狀態：資源仍不足，持續嘗試中。\n❌ 今日失敗嘗試：$FAIL_COUNT 次\n\n📣 通知執行次數：$RUN_COUNT 次\n⚠️ 通知失敗次數：$NOTIFY_FAIL_COUNT 次\n\n👤 執行帳號：$ACTOR\n📂 來源：$REPO\n🔗 Run ID: ${{ github.run_id }}"
 
           # LINE 通知
           if [ -n "${{ secrets.LINE_ACCESS_TOKEN }}" ] && [ -n "${{ secrets.LINE_USER_ID }}" ]; then
