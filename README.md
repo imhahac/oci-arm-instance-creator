@@ -58,7 +58,17 @@ graph TD
 | `OCI_MEMORY_GBS` | `24` | 記憶體大小 (永久免費上限 24) |
 | `OCI_MAX_INSTANCES` | `2` | 該區域最多允許建立的實例數量 |
 | `OCI_BOOT_VOLUME_SIZE`| `50` | 引導磁碟大小 (GB) |
+| `OCI_BOOT_VOLUME_VPUS_PER_GB`| `10` | 磁碟效能等級 (10 為 Balanced, 20 為 High Performance) |
 | `OCI_COST_THRESHOLD` | `0.1` | 本月預算門檻 (USD)，超過將停用 API 呼叫 |
+
+#### ⚙️ 進階延遲與重試設定 (選填)
+若想更精細地調整自動申請的行為，可額外加入以下 Variables：
+| Variable 名稱 | 預設值 | 說明 |
+| :--- | :--- | :--- |
+| `JITTER_MAX` | `60` | 啟動前的最大隨機延遲 (秒)，避免瞬間流量 |
+| `RETRY_MAX` | `2` | 每個區域 API 呼叫的重試次數 |
+| `RETRY_DELAY_1` | `60` | 第一次重試延遲 (秒) |
+| `RETRY_DELAY_2` | `30` | 第二次以後的重試延遲 (秒) |
 
 ### 4. 啟用 GitHub Pages 儀表板
 前往專案 `Settings` -> `Pages`：
