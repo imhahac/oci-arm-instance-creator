@@ -11,7 +11,7 @@ from oracle_arm_manager.budget_checker import BudgetChecker
 from oracle_arm_manager.notifier import send_notification
 
 class LaunchResult:
-    def __init__(self):
+    def __init__(self) -> None:
         self.success = False
         self.logs: List[str] = []
         # 給儀表板統計用
@@ -23,10 +23,10 @@ class LaunchResult:
             "active_instances": 0
         }
         
-    def add_log(self, region: str, ad: str, status: str):
+    def add_log(self, region: str, ad: str, status: str) -> None:
         self.logs.append(f"| {region} | {ad} | {status} |")
         
-    def record_error(self, region: str, err_type: str):
+    def record_error(self, region: str, err_type: str) -> None:
         if region not in self.stats["regions_tried"]:
             self.stats["regions_tried"].append(region)
         self.stats["error_distribution"][err_type] = self.stats["error_distribution"].get(err_type, 0) + 1

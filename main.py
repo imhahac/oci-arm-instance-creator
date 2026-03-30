@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from typing import Optional, Dict, Any, List
 
 from oracle_arm_manager.logger import logger
 from oracle_arm_manager.config import load_config
@@ -11,7 +12,7 @@ def write_stats(success: bool, launch_stats: Optional[Dict[str, Any]]) -> None:
     stats_file = "stats.json"
     
     # 預設狀態資料結構
-    stats = {
+    stats: Dict[str, Any] = {
         "last_run": datetime.utcnow().isoformat() + "Z",
         "total_runs": 0,
         "success_runs": 0,

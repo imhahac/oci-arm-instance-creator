@@ -40,7 +40,8 @@ class OciClientWrapper:
 
     def list_availability_domains(self) -> List[Any]:
         """讀取該 Region 底下的可用 AD 列表"""
-        return self.identity_client.list_availability_domains(self.compartment_id).data
+        res = self.identity_client.list_availability_domains(self.compartment_id).data
+        return list(res) if res is not None else []
 
     def launch_instance(self, launch_details: oci.core.models.LaunchInstanceDetails) -> str:
         """

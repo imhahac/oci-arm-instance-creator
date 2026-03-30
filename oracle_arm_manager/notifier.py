@@ -2,7 +2,7 @@ import os
 from typing import Optional, Dict, Any, List
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
+from urllib3.util import Retry # type: ignore
 from oracle_arm_manager.logger import logger
 
 class NotificationError(Exception):
@@ -104,7 +104,7 @@ class DiscordNotifier(BaseNotifier):
 
 class NotificationManager:
     """封裝所有通知管道發送邏輯"""
-    def __init__(self):
+    def __init__(self) -> None:
         self.notifiers: List[BaseNotifier] = [
             LineNotifier(),
             TelegramNotifier(),
@@ -112,7 +112,7 @@ class NotificationManager:
         ]
 
     def notify_all(self, title: str, content: str, is_success: bool = False) -> None:
-        errors = []
+        errors: List[str] = []
         for notifier in self.notifiers:
             try:
                 notifier.send(title, content, is_success)
