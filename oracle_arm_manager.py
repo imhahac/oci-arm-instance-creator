@@ -1,33 +1,97 @@
-import logging
-from config import load_config
-from oci_manager import launch_instance, safe_write_file
-from notifications import send_notification
+import json
+import os
+from datetime import datetime
 
-# 設定日誌格式
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+from oracle_arm_manager.logger import logger
+from oracle_arm_manager.config import load_config
+from oracle_arm_manager.instance_launcher import InstanceLauncher
+from oracle_arm_manager.notifier import send_notification
 
-if __name__ == "__main__":
+def write_stats(success: bool, launch_stats: dict):
+    stats_file = "stats.json"
+    
+    # 預設狀態資料結構
+    stats = {
+        "last_run": datetime.utcnow().isoformat() + "Z",
+        "total_runs": 0,
+        "success_runs": 0,
+        "fail_runs": 0,
+        "regions_failed": {},
+        "history": [],
+    }
+    
+    if os.path.exists(stats_file):
+        try:
+            with open(stats_file, "r", encoding="utf-8") as f:
+                stats.update(json.load(f))
+        except Exception as e:
+            logger.warning("解析 stats.json 失敗，將重新建立: %s", e)
+
+    # 紀錄更新
+    stats["last_run"] = datetime.utcnow().isoformat() + "Z"
+    stats["total_runs"] += 1
+    
+    if success:
+        stats["success_runs"] += 1
+    else:
+        stats["fail_runs"] += 1
+
+    # 累加區域失敗計數
+    if not success and launch_stats:
+        for r in launch_stats.get("regions_tried", []):
+            stats["regions_failed"][r] = stats["regions_failed"].get(r, 0) + 1
+
+    # 紀錄最新幾筆供線圖使用
+    stats["history"].append({
+        "timestamp": stats["last_run"],
+        "success": success,
+        "attempts": launch_stats.get("attempts", 0) if launch_stats else 0,
+        "errors": launch_stats.get("error_distribution", {}) if launch_stats else {}
+    })
+    
+    # 只保留近期 50 筆紀錄避免檔案過大
+    if len(stats["history"]) > 50:
+        stats["history"] = stats["history"][-50:]
+
+    with open(stats_file, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2, ensure_ascii=False)
+
+
+def main():
     try:
-        logging.info("🚀 啟動 OCI ARM 自動申請程序")
+        logger.info("🚀 啟動重構後的 OCI ARM 自動申請程序")
         cfg = load_config()
-        success = launch_instance(cfg)
+        launcher = InstanceLauncher(cfg)
         
-        # 寫入結果供 GitHub Actions 使用
-        safe_write_file("result.txt", "success" if success else "fail")
-        logging.info("🏁 程序執行完畢，結果: %s", "成功" if success else "未建立 (容量不足/預算限制/已達上限)")
+        launch_result = launcher.run()
+        success = launch_result.success
+        
+        # 寫入供 Actions 使用
+        with open("result.txt", "w", encoding="utf-8") as f:
+            f.write("success" if success else "fail")
+            
+        with open("detailed_log.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(launch_result.logs))
+        
+        # 寫入供 Dashboard 讀取
+        write_stats(success, launch_result.stats)
+        
+        logger.info("🏁 程序執行完畢，結果: %s", "成功 (或達上限)" if success else "未建立 (容量不足或速率限制)")
 
     except Exception as e:
-        logging.error("❌ 發生嚴重錯誤: %s", e, exc_info=True)
-        safe_write_file("result.txt", "fail")
+        logger.error("❌ 發生嚴重錯誤: %s", str(e), exc_info=True)
+        with open("result.txt", "w", encoding="utf-8") as f:
+            f.write("fail")
+            
+        write_stats(False, None)
         
-        # 發送失敗通知
+        # 發送嚴重失敗通知
         try:
-            send_notification("🚨 OCI ARM 執行失敗", f"錯誤訊息: {str(e)}")
+            send_notification("🚨 OCI ARM 發生異常", f"請檢察 Logs。錯誤: {str(e)[:100]}")
         except Exception as notify_err:
-            logging.error("無法發送錯誤通知: %s", notify_err)
+            logger.error("無法發送通知: %s", notify_err)
         
         raise e
+
+if __name__ == "__main__":
+    main()
