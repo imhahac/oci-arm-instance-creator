@@ -59,7 +59,7 @@ jobs:
           OCI_BOOT_VOLUME_VPUS_PER_GB: ${{ vars.OCI_BOOT_VOLUME_VPUS_PER_GB }}
           OCI_MAX_INSTANCES: ${{ vars.OCI_MAX_INSTANCES }}
           OCI_SHAPE: ${{ vars.OCI_SHAPE }}
-        run: python oracle_arm_manager.py
+        run: python main.py
 
       # 步驟 5：記錄每次執行的狀態
       - name: Log status for summary

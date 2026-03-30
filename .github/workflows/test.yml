@@ -25,7 +25,7 @@ jobs:
           pip install oci requests
           
       - name: Run Mypy (Type Check)
-        run: mypy oracle_arm_manager/ oracle_arm_manager.py
+        run: mypy oracle_arm_manager/ main.py
         
       - name: Run Pytest (Unit Tests)
         run: pytest
