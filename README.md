@@ -53,6 +53,12 @@ graph TD
 | `OCI_CONFIG_REGION` | `ap-osaka-1, ap-tokyo-1` | 嘗試區域 (多個以逗號隔開) |
 | `OCI_IMAGE_ID` | `ocid1.image.oc1...` | 映像檔 OCID |
 | `OCI_SUBNET_ID` | `ocid1.subnet.oc1...` | 子網路 OCID |
+| `OCI_SHAPE` | `VM.Standard.A1.Flex` | 實例規格 (ARM 均為此值) |
+| `OCI_OCPUS` | `4` | CPU 核心數 (永久免費上限 4) |
+| `OCI_MEMORY_GBS` | `24` | 記憶體大小 (永久免費上限 24) |
+| `OCI_MAX_INSTANCES` | `2` | 該區域最多允許建立的實例數量 |
+| `OCI_BOOT_VOLUME_SIZE`| `50` | 引導磁碟大小 (GB) |
+| `OCI_COST_THRESHOLD` | `0.1` | 本月預算門檻 (USD)，超過將停用 API 呼叫 |
 
 ### 4. 啟用 GitHub Pages 儀表板
 前往專案 `Settings` -> `Pages`：

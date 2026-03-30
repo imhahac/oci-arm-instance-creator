@@ -19,7 +19,7 @@ jobs:
     # 提供 GitHub 關閉 workflow 所需的權限
     permissions:
       actions: write
-      contents: read
+      contents: write
     steps:
       # 步驟 1：檢出原始碼
       - uses: actions/checkout@v4
