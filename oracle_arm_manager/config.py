@@ -69,7 +69,8 @@ class OracleArmConfig:
 
 
 def get_env(var_name: str, default_val: str = "") -> str:
-    return os.getenv(var_name, default_val).strip()
+    val = os.getenv(var_name, "").strip()
+    return val if val else default_val
 
 
 def validate_required_env() -> None:
