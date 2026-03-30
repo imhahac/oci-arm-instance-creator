@@ -28,4 +28,4 @@ jobs:
         run: mypy oracle_arm_manager/ main.py
         
       - name: Run Pytest (Unit Tests)
-        run: pytest
+        run: python -m pytest

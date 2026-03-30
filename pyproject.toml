@@ -1,4 +1,5 @@
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = "--cov=oracle_arm_manager --cov-report=term-missing"
