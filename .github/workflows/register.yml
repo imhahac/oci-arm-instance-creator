@@ -58,13 +58,13 @@ jobs:
           OCI_BOOT_VOLUME_SIZE: ${{ vars.OCI_BOOT_VOLUME_SIZE }}
           OCI_BOOT_VOLUME_VPUS_PER_GB: ${{ vars.OCI_BOOT_VOLUME_VPUS_PER_GB }}
           OCI_MAX_INSTANCES: ${{ vars.OCI_MAX_INSTANCES }}
+          OCI_SHAPE: ${{ vars.OCI_SHAPE }}
         run: python oracle_arm_manager.py
 
-      # 步驟 5：記錄每次執行的狀態 (可用於統計成功與失敗次數)
+      # 步驟 5：記錄每次執行的狀態
       - name: Log status for summary
         run: |
           mkdir -p logs
-          # 將執行日期紀錄進檔案中，日後可與 result.txt 結合做進一步統計
           date +%Y-%m-%d >> logs/attempts.log
 
       # 步驟 6：寫入 GitHub Actions Job Summary 儀表板
@@ -76,7 +76,7 @@ jobs:
             if [ "$RESULT" = "success" ]; then
               echo "### 🟢 Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
             else
-              echo "### 🔴 Status: OUT OF CAPACITY / ERROR / BUDGET LIMIT" >> $GITHUB_STEP_SUMMARY
+              echo "### 🔴 Status: FAIL / CAPACITY / BUDGET" >> $GITHUB_STEP_SUMMARY
             fi
             
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -92,7 +92,7 @@ jobs:
              echo "### ⚠️ Status: UNKNOWN" >> $GITHUB_STEP_SUMMARY
           fi
 
-      # 步驟 7：如果註冊成功，自動停止未來的排程，避免繼續浪費資源
+      # 步驟 7：如果註冊成功，自動停止未來的排程
       - name: Auto-stop workflow on success
         env:
           GH_TOKEN: ${{ github.token }}
@@ -100,9 +100,7 @@ jobs:
           if [ -f result.txt ]; then
             RESULT=$(cat result.txt)
             if [ "$RESULT" = "success" ]; then
-              echo "✅ Instance created successfully! Disabling this workflow to save resources."
+              echo "✅ Instance created successfully! Disabling this workflow."
               gh workflow disable "ARM Auto Registration"
-            else
-              echo "⚠️ Failed to create instance. Workflow remains active."
             fi
-          fi
+          fi

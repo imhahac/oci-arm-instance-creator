@@ -22,6 +22,7 @@ Thumbs.db
 *.log
 tmp/
 result.txt
+detailed_log.txt
 logs/
 
 # OCI Private Keys
