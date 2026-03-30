@@ -2,12 +2,15 @@ import logging
 import sys
 
 def setup_logging() -> logging.Logger:
+    import os
     logger = logging.getLogger("oracle_arm_manager")
-    # 避免重複添加 handlers
     if logger.handlers:
         return logger
 
-    logger.setLevel(logging.INFO)
+    # 從環境變數讀取日誌等級 (預設 INFO)
+    log_level_str = os.getenv("OCI_LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
+    logger.setLevel(log_level)
 
     # 建立日誌格式
     formatter = logging.Formatter(

@@ -6,7 +6,7 @@ from oracle_arm_manager.config import OracleArmConfig
 
 class OciClientWrapper:
     """封裝底層 OCI API 的存取"""
-    def __init__(self, config: OracleArmConfig, region: str):
+    def __init__(self, config: OracleArmConfig, region: str) -> None:
         self.region = region
         self.compartment_id = config.compartment_id
         self.base_config: Dict[str, Any] = {

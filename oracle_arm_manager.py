@@ -7,7 +7,7 @@ from oracle_arm_manager.config import load_config
 from oracle_arm_manager.instance_launcher import InstanceLauncher
 from oracle_arm_manager.notifier import send_notification
 
-def write_stats(success: bool, launch_stats: dict):
+def write_stats(success: bool, launch_stats: Optional[Dict[str, Any]]) -> None:
     stats_file = "stats.json"
     
     # 預設狀態資料結構
@@ -16,7 +16,9 @@ def write_stats(success: bool, launch_stats: dict):
         "total_runs": 0,
         "success_runs": 0,
         "fail_runs": 0,
+        "active_instances": 0,
         "regions_failed": {},
+        "hourly_distribution": {}, # 記錄各小時(UTC)的成功/失敗次數
         "history": [],
     }
     
@@ -36,6 +38,20 @@ def write_stats(success: bool, launch_stats: dict):
     else:
         stats["fail_runs"] += 1
 
+    # 更新當前實例數 (如果有的話)
+    if launch_stats and "active_instances" in launch_stats:
+        stats["active_instances"] = launch_stats["active_instances"]
+
+    # 小時分佈統計 (UTC)
+    hour = str(datetime.utcnow().hour)
+    if hour not in stats["hourly_distribution"]:
+        stats["hourly_distribution"][hour] = {"success": 0, "fail": 0}
+    
+    if success:
+        stats["hourly_distribution"][hour]["success"] += 1
+    else:
+        stats["hourly_distribution"][hour]["fail"] += 1
+
     # 累加區域失敗計數
     if not success and launch_stats:
         for r in launch_stats.get("regions_tried", []):
@@ -45,6 +61,7 @@ def write_stats(success: bool, launch_stats: dict):
     stats["history"].append({
         "timestamp": stats["last_run"],
         "success": success,
+        "regions_tried": launch_stats.get("regions_tried", []) if launch_stats else [],
         "attempts": launch_stats.get("attempts", 0) if launch_stats else 0,
         "errors": launch_stats.get("error_distribution", {}) if launch_stats else {}
     })
@@ -57,7 +74,7 @@ def write_stats(success: bool, launch_stats: dict):
         json.dump(stats, f, indent=2, ensure_ascii=False)
 
 
-def main():
+def main() -> None:
     try:
         logger.info("🚀 啟動重構後的 OCI ARM 自動申請程序")
         cfg = load_config()

@@ -19,7 +19,8 @@ class LaunchResult:
             "attempts": 0,
             "success": False,
             "regions_tried": [],
-            "error_distribution": {}
+            "error_distribution": {},
+            "active_instances": 0
         }
         
     def add_log(self, region: str, ad: str, status: str):
@@ -31,10 +32,10 @@ class LaunchResult:
         self.stats["error_distribution"][err_type] = self.stats["error_distribution"].get(err_type, 0) + 1
 
 class InstanceLauncher:
-    def __init__(self, config: OracleArmConfig):
+    def __init__(self, config: OracleArmConfig) -> None:
         self.config = config
 
-    def _apply_jitter(self):
+    def _apply_jitter(self) -> None:
         """隨機等待，防止瞬間擁塞"""
         if self.config.jitter_max > 0:
             jitter = random.uniform(self.config.jitter_min, self.config.jitter_max)
@@ -118,6 +119,7 @@ class InstanceLauncher:
 
         # 2. 已有實例檢查
         active_count = primary_wrapper.list_active_instances()
+        result.stats["active_instances"] = active_count
         logger.info("目前已建立 %s 台 ARM 實例, 上限 %s", active_count, self.config.max_instances)
         
         if active_count >= self.config.max_instances:

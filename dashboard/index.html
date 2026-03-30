@@ -22,9 +22,17 @@
                 </h1>
                 <p class="text-gray-400 mt-1">即時狀態監控儀表板</p>
             </div>
-            <div class="text-right">
+            <div class="text-right flex flex-col items-end">
                 <p class="text-sm text-gray-400">最後更新</p>
-                <p id="lastRun" class="text-lg font-mono text-green-300">Loading...</p>
+                <div class="flex items-center space-x-2">
+                    <span id="refreshing" class="hidden">
+                        <svg class="animate-spin h-4 w-4 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                    <p id="lastRun" class="text-lg font-mono text-green-300">Loading...</p>
+                </div>
             </div>
         </header>
 
@@ -49,23 +57,36 @@
                     <p id="failRuns" class="text-4xl font-bold text-red-400 mt-2">0</p>
                 </div>
                 
+                <div class="bg-gray-800 p-5 rounded-xl border border-blue-600/50 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+                    </div>
+                    <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider">目前現存實例</h3>
+                    <p id="activeInstances" class="text-4xl font-bold text-blue-400 mt-2">0</p>
+                </div>
+
                 <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg">
                     <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider">整體成功率</h3>
-                    <p id="successRate" class="text-4xl font-bold text-blue-400 mt-2">0%</p>
+                    <p id="successRate" class="text-4xl font-bold text-green-400 mt-2">0%</p>
                 </div>
             </div>
 
             <!-- 圖表區塊 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
-                    <h2 class="text-lg font-semibold mb-4 text-white">區域容量不足佔比 (歷史累計)</h2>
+                    <h2 class="text-lg font-semibold mb-4 text-white">區域容量不足分佈 (Regions)</h2>
                     <canvas id="regionPieChart"></canvas>
                 </div>
                 
                 <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
-                    <h2 class="text-lg font-semibold mb-4 text-white">近期 50 次自動申請紀錄</h2>
-                    <canvas id="historyLineChart"></canvas>
+                    <h2 class="text-lg font-semibold mb-4 text-white">熱點時段分析 (UTC 小時)</h2>
+                    <canvas id="hourlyBarChart"></canvas>
                 </div>
+            </div>
+
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                <h2 class="text-lg font-semibold mb-4 text-white">近期 50 次自動申請紀錄</h2>
+                <canvas id="historyLineChart" height="100"></canvas>
             </div>
 
         </main>
@@ -77,36 +98,61 @@
 
     <script>
         async function fetchStats() {
-            try {
-                // 發布後會存在根目錄下的 stats.json
-                const res = await fetch('../stats.json?t=' + new Date().getTime());
-                if (!res.ok) throw new Error("JSON Fetch Failed");
-                const stats = await res.json();
+            const refreshing = document.getElementById('refreshing');
+            refreshing.classList.remove('hidden');
+            
+            // 嘗試多種可能的路徑
+            const paths = ['../stats.json', './stats.json', 'stats.json'];
+            let stats = null;
+            let error = null;
+
+            for (const path of paths) {
+                try {
+                    const res = await fetch(`${path}?t=${new Date().getTime()}`);
+                    if (res.ok) {
+                        stats = await res.json();
+                        break;
+                    }
+                } catch (e) {
+                    error = e;
+                }
+            }
+
+            if (stats) {
                 renderDashboard(stats);
-            } catch (err) {
-                console.error(err);
-                document.getElementById('lastRun').innerText = "從尚未產生的資料來源獲取...";
-                document.getElementById('lastRun').classList.add("text-yellow-400");
+            } else {
+                console.error("All fetch paths failed", error);
+                document.getElementById('lastRun').innerText = "連線失敗或資料尚未產生";
+                document.getElementById('lastRun').classList.add("text-red-500");
                 document.getElementById('lastRun').classList.remove("text-green-300");
             }
+            
+            setTimeout(() => refreshing.classList.add('hidden'), 500);
         }
+
+        let charts = {}; // 追蹤圖表實例以便銷毀重繪
 
         function renderDashboard(data) {
             // 解析資料
-            document.getElementById('lastRun').innerText = new Date(data.last_run).toLocaleString();
-            document.getElementById('totalRuns').innerText = data.total_runs;
-            document.getElementById('successRuns').innerText = data.success_runs;
-            document.getElementById('failRuns').innerText = data.fail_runs;
+            document.getElementById('lastRun').innerText = data.last_run ? new Date(data.last_run).toLocaleString() : "N/A";
+            document.getElementById('lastRun').classList.remove("text-red-500");
+            document.getElementById('lastRun').classList.add("text-green-300");
+            
+            document.getElementById('totalRuns').innerText = data.total_runs || 0;
+            document.getElementById('successRuns').innerText = data.success_runs || 0;
+            document.getElementById('failRuns').innerText = data.fail_runs || 0;
+            document.getElementById('activeInstances').innerText = data.active_instances || 0;
             
             const rate = data.total_runs > 0 ? ((data.success_runs / data.total_runs) * 100).toFixed(1) : 0;
             document.getElementById('successRate').innerText = `${rate}%`;
 
-            // 繪製圓餅圖 - 區域失敗狀況
+            // 銷毀舊圖表
+            Object.values(charts).forEach(c => c.destroy());
+
+            // 1. 圓餅圖 - 區域失敗狀況
             const regions = Object.keys(data.regions_failed || {});
             const regionValues = Object.values(data.regions_failed || {});
-            const pieCtx = document.getElementById('regionPieChart').getContext('2d');
-            
-            new Chart(pieCtx, {
+            charts.pie = new Chart(document.getElementById('regionPieChart'), {
                 type: 'doughnut',
                 data: {
                     labels: regions.length ? regions : ['暫無數據'],
@@ -118,26 +164,51 @@
                 },
                 options: {
                     responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: '#9ca3af' } }
-                    }
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } }
                 }
             });
 
-            // 繪製折線圖 - 近期趨勢 (Attempts)
-            const history = data.history || [];
-            const labels = history.map((_, idx) => `Run #${idx+1}`);
-            const lineCtx = document.getElementById('historyLineChart').getContext('2d');
+            // 2. 圓餅圖/長條圖 - 小時分佈 (新維度)
+            const hourLabels = Array.from({length: 24}, (_, i) => `${i}h`);
+            const hourData = data.hourly_distribution || {};
+            charts.bar = new Chart(document.getElementById('hourlyBarChart'), {
+                type: 'bar',
+                data: {
+                    labels: hourLabels,
+                    datasets: [
+                        {
+                            label: '成功',
+                            data: Array.from({length: 24}, (_, i) => hourData[i]?.success || 0),
+                            backgroundColor: '#4ade80'
+                        },
+                        {
+                            label: '失敗',
+                            data: Array.from({length: 24}, (_, i) => hourData[i]?.fail || 0),
+                            backgroundColor: '#f87171'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { stacked: true, ticks: { color: '#9ca3af' } },
+                        y: { stacked: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
+                    },
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } }
+                }
+            });
 
-            new Chart(lineCtx, {
+            // 3. 折線圖 - 近期趨勢
+            const history = data.history || [];
+            charts.line = new Chart(document.getElementById('historyLineChart'), {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: history.map((_, idx) => `#${idx+1}`),
                     datasets: [{
-                        label: '嘗試建立次數 (AD)',
+                        label: 'AD 嘗試次數',
                         data: history.map(h => h.attempts),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96, 165, 250, 0.1)',
                         fill: true,
                         tension: 0.3
                     }]
@@ -148,14 +219,15 @@
                         x: { display: false },
                         y: { ticks: { color: '#9ca3af', stepSize: 1 }, grid: { color: '#374151' } }
                     },
-                    plugins: {
-                        legend: { labels: { color: '#9ca3af' } }
-                    }
+                    plugins: { legend: { labels: { color: '#9ca3af' } } }
                 }
             });
         }
 
-        window.onload = fetchStats;
+        window.onload = () => {
+            fetchStats();
+            setInterval(fetchStats, 60000); // 每一分鐘自動刷新
+        };
     </script>
 </body>
 </html>

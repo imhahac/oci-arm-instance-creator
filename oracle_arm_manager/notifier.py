@@ -1,6 +1,8 @@
 import os
 from typing import Optional, Dict, Any, List
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 from oracle_arm_manager.logger import logger
 
 class NotificationError(Exception):
@@ -17,15 +19,28 @@ class BaseNotifier:
     def send(self, title: str, content: str, is_success: bool = False) -> None:
         raise NotImplementedError
 
-    def _safe_post(self, url: str, json_data: Dict[str, Any], headers: Optional[Dict[str, str]] = None, timeout: int = 10) -> None:
+    def _safe_post(self, url: str, json_data: Dict[str, Any], headers: Optional[Dict[str, str]] = None, timeout: int = 15) -> None:
+        session = requests.Session()
+        # 設定重試策略：重試 3 次，指數退避，針對分佈在 500-504 的錯誤代碼進行重試
+        retries = Retry(
+            total=3, 
+            backoff_factor=2, 
+            status_forcelist=[500, 502, 503, 504],
+            raise_on_status=True
+        )
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        session.mount("http://", HTTPAdapter(max_retries=retries))
+
         try:
-            resp = requests.post(url, json=json_data, headers=headers or {}, timeout=timeout)
+            resp = session.post(url, json=json_data, headers=headers or {}, timeout=timeout)
             resp.raise_for_status()
             logger.debug("通知發送成功: %s, status_code=%s", url, resp.status_code)
         except requests.RequestException as e:
-            err_msg = f"通知發送失敗 {url}: {str(e)}"
+            err_msg = f"通知發送失敗 (已重試): {url}: {str(e)}"
             logger.error(err_msg, exc_info=True)
             raise NotificationError(err_msg) from e
+        finally:
+            session.close()
 
 class LineNotifier(BaseNotifier):
     def send(self, title: str, content: str, is_success: bool = False) -> None:

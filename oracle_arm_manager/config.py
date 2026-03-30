@@ -6,7 +6,7 @@ class ConfigurationError(Exception):
     """自訂設定異常"""
     pass
 
-REQUIRED_ENV_VARS = [
+REQUIRED_ENV_VARS: List[str] = [
     "OCI_CONFIG_USER",
     "OCI_CONFIG_KEY_CONTENT",
     "OCI_CONFIG_FINGERPRINT",
@@ -18,7 +18,7 @@ REQUIRED_ENV_VARS = [
     "OCI_CONFIG_REGION",
 ]
 
-CAPACITY_KEYWORDS = ["capacity", "quota", "limit"]
+CAPACITY_KEYWORDS: List[str] = ["capacity", "quota", "limit"]
 
 
 @dataclass
@@ -52,7 +52,7 @@ class OracleArmConfig:
     jitter_max: float
     retry: RetryConfig
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """覆寫預設的 __repr__ 以保護機密資訊 (Secrets) 不被印出至日誌中"""
         return (
             f"<OracleArmConfig "
