@@ -1,4 +1,5 @@
 import pytest
+import requests
 from unittest.mock import MagicMock
 from oracle_arm_manager.notifier import LineNotifier, TelegramNotifier, DiscordNotifier, NotificationError
 
@@ -11,7 +12,7 @@ def test_line_notifier_skip_without_token(mocker):
     assert mock_post.call_count == 0
 
 def test_telegram_notifier_payload(mocker):
-    mocker.patch("os.getenv", side_effect=lambda k: "id123" if k == "TELEGRAM_CHAT_ID" else "tok456" if k == "TELEGRAM_BOT_TOKEN" else None)
+    mocker.patch("os.getenv", side_effect=lambda k, d=None: "id123" if k == "TELEGRAM_CHAT_ID" else ("tok456" if k == "TELEGRAM_BOT_TOKEN" else d))
     mock_post = mocker.patch("requests.Session.post")
     mock_post.return_value.status_code = 200
     
@@ -26,7 +27,7 @@ def test_telegram_notifier_payload(mocker):
 def test_notifier_retry_logic(mocker):
     # This is harder to test without deep internal mocking, but we can check if it throws/logs
     mocker.patch("os.getenv", return_value="webhook_url")
-    mock_post = mocker.patch("requests.Session.post", side_effect=Exception("Network Error"))
+    mock_post = mocker.patch("requests.Session.post", side_effect=requests.RequestException("Network Error"))
     
     notifier = DiscordNotifier()
     with pytest.raises(NotificationError):
