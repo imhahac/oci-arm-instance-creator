@@ -26,7 +26,7 @@ class BudgetChecker:
         try:
             retry_strategy = oci.retry.DEFAULT_RETRY_STRATEGY
             usage_client = UsageapiClient(config_dict, retry_strategy=retry_strategy)
-            kwargs = {"timeout": (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)}
+            kwargs = {"request_kwargs": {"timeout": (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)}}
             now = datetime.utcnow()
             first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)

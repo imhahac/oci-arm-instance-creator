@@ -27,3 +27,23 @@ logs/
 
 # OCI Private Keys
 *.pem
+
+# Testing/Coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+
+# Typing/Linting
+.mypy_cache/
+.pytype/
+.ruff_cache/
+
+# Local data (Keep stats.json as it's updated via Actions)
+# stats.json
+node_modules/
+dist/
+build/
+*.egg-info/

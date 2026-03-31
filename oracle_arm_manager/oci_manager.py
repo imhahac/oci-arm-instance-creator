@@ -21,7 +21,7 @@ class OciClientWrapper:
         retry_strategy = oci.retry.DEFAULT_RETRY_STRATEGY
         self.kwargs: Dict[str, Any] = {
             "retry_strategy": retry_strategy,
-            "timeout": (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)
+            "request_kwargs": {"timeout": (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)}
         }
         
         # 初始化需要的 Clients
