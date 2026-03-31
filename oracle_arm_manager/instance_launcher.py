@@ -79,18 +79,23 @@ class InstanceLauncher:
             send_notification("✅ Oracle ARM 成功", f"IP: {public_ip}\n區域: {oci_wrapper.region}\nAD: {ad_name}", is_success=True)
             return True
 
-        except OciCapacityError:
-            result.add_log(oci_wrapper.region, ad_name, "❌ 容量不足 (已跳過)")
+        except OciCapacityError as e:
+            msg = f"❌ 容量不足: {str(e)}"
+            result.add_log(oci_wrapper.region, ad_name, msg)
             result.record_error(oci_wrapper.region, "Out of Capacity")
+            logger.info("區域 %s AD %s: %s", oci_wrapper.region, ad_name, msg)
             return False
 
-        except OciRateLimitError:
-            result.add_log(oci_wrapper.region, ad_name, "⚠️ 速率限制")
+        except OciRateLimitError as e:
+            msg = f"⚠️ 速率限制: {str(e)}"
+            result.add_log(oci_wrapper.region, ad_name, msg)
             result.record_error(oci_wrapper.region, "Rate Limit")
+            logger.info("區域 %s AD %s: %s", oci_wrapper.region, ad_name, msg)
             return False
 
         except OciApiError as e:
-            result.add_log(oci_wrapper.region, ad_name, "❌ 失敗: API 錯誤")
+            msg = f"❌ API 錯誤: {str(e)}"
+            result.add_log(oci_wrapper.region, ad_name, msg)
             result.record_error(oci_wrapper.region, "API Error")
             logger.warning("在 AD %s 建立實例時遭遇 OCI API 錯誤: %s", ad_name, e)
             return False

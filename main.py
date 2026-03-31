@@ -113,7 +113,12 @@ def main() -> None:
         # 寫入供 Dashboard 讀取
         write_stats(success, launch_result.stats)
         
-        logger.info("🏁 程序執行完畢，結果: %s", "成功 (或達上限)" if success else "未建立 (容量不足或速率限制)")
+        if success:
+            logger.info("🏁 程序執行完畢，結果: 成功 (或達上限)")
+        else:
+            errors = launch_result.stats.get("error_distribution", {})
+            summary = ", ".join([f"{k}: {v}" for k, v in errors.items()]) or "無具體錯誤"
+            logger.info("🏁 程序執行完畢，結果: 未建立 (%s)", summary)
 
     except Exception as e:
         logger.error("❌ 發生嚴重錯誤: %s", str(e), exc_info=True)
