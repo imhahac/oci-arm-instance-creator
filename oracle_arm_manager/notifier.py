@@ -13,9 +13,10 @@ from oracle_arm_manager.constants import (
 )
 
 def _get_github_info() -> str:
-    workflow = os.getenv("GITHUB_WORKFLOW", "Unknown")
+    repo = os.getenv("GITHUB_REPOSITORY", "未知專案")
+    workflow = os.getenv("GITHUB_WORKFLOW", "未知工作流")
     run_id = os.getenv("GITHUB_RUN_ID", "N/A")
-    return f"\n\n📌 GitHub Actions ({workflow})\n🔗 Run ID: {run_id}"
+    return f"\n\n📦 來源: {repo}\n📌 工作流: {workflow}\n🔗 執行編號: {run_id}"
 
 class BaseNotifier:
     """通知基底類別"""
@@ -62,7 +63,7 @@ class LineNotifier(BaseNotifier):
                 "contents": {
                     "type": "bubble",
                     "header": {"type": "box", "layout": "vertical", "contents": [{"type": "text", "text": title, "weight": "bold", "color": color}]},
-                    "body": {"type": "box", "layout": "vertical", "contents": [{"type": "text", "text": content, "wrap": True, "size": "sm"}]},
+                    "body": {"type": "box", "layout": "vertical", "contents": [{"type": "text", "text": f"{content}{_get_github_info()}", "wrap": True, "size": "sm"}]},
                 },
             }],
         }
