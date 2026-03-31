@@ -12,12 +12,12 @@ def test_get_run_count_success(mocker):
         {"createdAt": "1990-01-01T00:00:00Z"}
     ])
     
-    count = get_run_count("repo", "workflow", "2000-01-01T00:00:00Z")
+    count = get_run_count("owner/repo", "workflow.yml", "2000-01-01T00:00:00Z")
     assert count == 1
     
 def test_get_run_count_error(mocker, caplog):
     mocker.patch("subprocess.run", side_effect=Exception("gh CLI fail"))
-    count = get_run_count("repo", "workflow", "2000-01-01T00:00:00Z")
+    count = get_run_count("owner/repo", "workflow.yml", "2000-01-01T00:00:00Z")
     assert count == 0
     assert "gh CLI fail" in caplog.text
 

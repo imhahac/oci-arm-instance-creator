@@ -1,5 +1,8 @@
 import json
 import os
+import tempfile
+import argparse
+import sys
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
@@ -78,9 +81,45 @@ def write_stats(success: bool, launch_stats: Optional[Dict[str, Any]]) -> None:
     if len(stats["history"]) > 50:
         stats["history"] = stats["history"][-50:]
 
-    with open(stats_file, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2, ensure_ascii=False)
+    # 原子寫入，先寫入暫存檔，再替代原始檔案以防止中斷損毀
+    try:
+        fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(stats_file)), text=True)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2, ensure_ascii=False)
+        os.replace(temp_path, stats_file)
+    except Exception as e:
+        logger.error("寫入 stats.json 失敗: %s", e)
+        # 確保刪除遺留的暫存檔
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
 
+def _atomic_write_file(filepath: str, content: str) -> None:
+    """以原子方式寫入文字檔"""
+    try:
+        fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(filepath)), text=True)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(temp_path, filepath)
+    except Exception as e:
+        logger.error("原子寫入檔案 %s 失敗: %s", filepath, e)
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+def check_environment(is_local: bool) -> bool:
+    """
+    檢查執行環境是否合法。
+    若非於 GitHub Actions 環境且未加上 --local 參數，則阻擋執行。
+    """
+    is_github_actions = os.getenv("GITHUB_ACTIONS") == "true"
+    if is_local:
+        logger.info("🔧 採用本地模式 (--local) 執行，忽略環境變數檢查。")
+        return True
+    
+    if not is_github_actions:
+        logger.error("🛑 環境檢查失敗: 程式未在 GitHub Actions 環境中執行。如需在本地端執行，請帶上 --local 參數。")
+        return False
+        
+    return True
 
 def main() -> None:
     """
@@ -95,22 +134,29 @@ def main() -> None:
     Raises:
         Exception: 任務發生不可預期或嚴重的設定錯誤時將終止並丟出。
     """
+    parser = argparse.ArgumentParser(description="OCI ARM Instance Creator")
+    parser.add_argument("--local", action="store_true", help="繞過 GitHub Actions 環境檢測")
+    args = parser.parse_args()
+
+    start_time = datetime.utcnow()
+
     try:
         logger.info("🚀 啟動重構後的 OCI ARM 自動申請程序")
+        
+        if not check_environment(args.local):
+            sys.exit(1)
+            
         cfg = load_config()
         launcher = InstanceLauncher(cfg)
         
         launch_result = launcher.run()
         success = launch_result.success
         
-        # 寫入供 Actions 使用
-        with open("result.txt", "w", encoding="utf-8") as f:
-            f.write("success" if success else "fail")
-            
-        with open("detailed_log.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(launch_result.logs))
+        # 使用原子寫入供 Actions 使用
+        _atomic_write_file("result.txt", "success" if success else "fail")
+        _atomic_write_file("detailed_log.txt", "\n".join(launch_result.logs))
         
-        # 寫入供 Dashboard 讀取
+        # 原子寫入供 Dashboard 讀取
         write_stats(success, launch_result.stats)
         
         if success:
@@ -122,8 +168,7 @@ def main() -> None:
 
     except Exception as e:
         logger.error("❌ 發生嚴重錯誤: %s", str(e), exc_info=True)
-        with open("result.txt", "w", encoding="utf-8") as f:
-            f.write("fail")
+        _atomic_write_file("result.txt", "fail")
             
         write_stats(False, None)
         
@@ -134,6 +179,10 @@ def main() -> None:
             logger.error("無法發送通知: %s", notify_err)
         
         raise e
+    finally:
+        end_time = datetime.utcnow()
+        elapsed = (end_time - start_time).total_seconds()
+        logger.info("⏱️ 總耗時: %.2f 秒", elapsed)
 
 if __name__ == "__main__":
     main()
