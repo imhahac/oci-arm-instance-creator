@@ -25,8 +25,8 @@ class BudgetChecker:
         from oracle_arm_manager.constants import OCI_API_TIMEOUT_SECONDS
         try:
             retry_strategy = oci.retry.DEFAULT_RETRY_STRATEGY
-            usage_client = UsageapiClient(config_dict, retry_strategy=retry_strategy)
-            kwargs = {"request_kwargs": {"timeout": (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)}}
+            timeout_config = (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)
+            usage_client = UsageapiClient(config_dict, retry_strategy=retry_strategy, timeout=timeout_config)
             now = datetime.utcnow()
             first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -40,7 +40,7 @@ class BudgetChecker:
                 is_aggregate_by_time=True,
             )
 
-            response = usage_client.request_summarized_usages(request_details, **kwargs)
+            response = usage_client.request_summarized_usages(request_details)
             usage_data = getattr(response.data, 'items', [])
             total_cost = sum(getattr(item, "computed_amount", 0) or 0 for item in usage_data)
 

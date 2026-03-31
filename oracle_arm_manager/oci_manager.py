@@ -19,15 +19,15 @@ class OciClientWrapper:
             "region": region,
         }
         retry_strategy = oci.retry.DEFAULT_RETRY_STRATEGY
+        timeout_config = (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)
         self.kwargs: Dict[str, Any] = {
-            "retry_strategy": retry_strategy,
-            "request_kwargs": {"timeout": (OCI_API_TIMEOUT_SECONDS, OCI_API_TIMEOUT_SECONDS)}
+            "retry_strategy": retry_strategy
         }
         
-        # 初始化需要的 Clients
-        self.compute_client = oci.core.ComputeClient(self.base_config, retry_strategy=retry_strategy)
-        self.identity_client = oci.identity.IdentityClient(self.base_config, retry_strategy=retry_strategy)
-        self.network_client = oci.core.VirtualNetworkClient(self.base_config, retry_strategy=retry_strategy)
+        # 初始化需要的 Clients，並統一設定 timeout
+        self.compute_client = oci.core.ComputeClient(self.base_config, retry_strategy=retry_strategy, timeout=timeout_config)
+        self.identity_client = oci.identity.IdentityClient(self.base_config, retry_strategy=retry_strategy, timeout=timeout_config)
+        self.network_client = oci.core.VirtualNetworkClient(self.base_config, retry_strategy=retry_strategy, timeout=timeout_config)
 
     def list_active_instances(self) -> int:
         """計算運行中/部署中的自動化 AMR 實例數量"""
