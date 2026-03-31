@@ -18,7 +18,14 @@ def mock_config():
         retry=RetryConfig(max_retries=1, delay_1=0, delay_2=0)
     )
 
-def test_launch_instance_success(mocker, mock_config):
+@pytest.fixture
+def mock_clients(mocker):
+    """Mock OCI clients to prevent deep config validation errors."""
+    mocker.patch("oci.core.ComputeClient")
+    mocker.patch("oci.identity.IdentityClient")
+    mocker.patch("oci.core.VirtualNetworkClient")
+
+def test_launch_instance_success(mocker, mock_config, mock_clients):
     wrapper = OciClientWrapper(mock_config, "region1")
     
     # Mocking launch_instance response
@@ -41,7 +48,7 @@ def test_launch_instance_success(mocker, mock_config):
     
     assert ip == "192.168.1.1"
 
-def test_launch_instance_capacity_error(mocker, mock_config):
+def test_launch_instance_capacity_error(mocker, mock_config, mock_clients):
     wrapper = OciClientWrapper(mock_config, "region1")
     
     # Mock ServiceError OutOfCapacity
@@ -51,7 +58,7 @@ def test_launch_instance_capacity_error(mocker, mock_config):
     with pytest.raises(OciCapacityError):
         wrapper.launch_instance(MagicMock())
 
-def test_launch_instance_rate_limit(mocker, mock_config):
+def test_launch_instance_rate_limit(mocker, mock_config, mock_clients):
     wrapper = OciClientWrapper(mock_config, "region1")
     
     # Mock ServiceError TooManyRequests
@@ -61,7 +68,7 @@ def test_launch_instance_rate_limit(mocker, mock_config):
     with pytest.raises(OciRateLimitError):
         wrapper.launch_instance(MagicMock())
 
-def test_launch_instance_generic_api_error(mocker, mock_config):
+def test_launch_instance_generic_api_error(mocker, mock_config, mock_clients):
     wrapper = OciClientWrapper(mock_config, "region1")
     
     err = oci.exceptions.ServiceError(status=401, code="NotAuthorized", headers={}, message="Invalid limits context")
