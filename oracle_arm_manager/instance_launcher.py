@@ -5,10 +5,11 @@ from typing import Tuple, List, Dict, Any
 
 import oci
 from oracle_arm_manager.logger import logger
-from oracle_arm_manager.config import OracleArmConfig, CAPACITY_KEYWORDS
+from oracle_arm_manager.config import OracleArmConfig
 from oracle_arm_manager.oci_manager import OciClientWrapper
 from oracle_arm_manager.budget_checker import BudgetChecker
 from oracle_arm_manager.notifier import send_notification
+from oracle_arm_manager.exceptions import OciCapacityError, OciRateLimitError, OciApiError
 
 class LaunchResult:
     def __init__(self) -> None:
@@ -78,23 +79,20 @@ class InstanceLauncher:
             send_notification("✅ Oracle ARM 成功", f"IP: {public_ip}\n區域: {oci_wrapper.region}\nAD: {ad_name}", is_success=True)
             return True
 
-        except oci.exceptions.ServiceError as svc_err:
-            message = (svc_err.message or "").lower()
-            is_capacity_error = any(keyword in message for keyword in CAPACITY_KEYWORDS)
+        except OciCapacityError:
+            result.add_log(oci_wrapper.region, ad_name, "❌ 容量不足 (已跳過)")
+            result.record_error(oci_wrapper.region, "Out of Capacity")
+            return False
 
-            if is_capacity_error:
-                # 遵循原本設計：容量不足直接跳過，不 retry
-                result.add_log(oci_wrapper.region, ad_name, "❌ 容量不足 (已跳過)")
-                result.record_error(oci_wrapper.region, "Out of Capacity")
-                return False
+        except OciRateLimitError:
+            result.add_log(oci_wrapper.region, ad_name, "⚠️ 速率限制")
+            result.record_error(oci_wrapper.region, "Rate Limit")
+            return False
 
-            if "too many requests" in message:
-                result.add_log(oci_wrapper.region, ad_name, "⚠️ 速率限制")
-                result.record_error(oci_wrapper.region, "Rate Limit")
-                return False
-
-            result.add_log(oci_wrapper.region, ad_name, f"❌ 失敗: {svc_err.code}")
-            result.record_error(oci_wrapper.region, f"Error: {svc_err.code}")
+        except OciApiError as e:
+            result.add_log(oci_wrapper.region, ad_name, "❌ 失敗: API 錯誤")
+            result.record_error(oci_wrapper.region, "API Error")
+            logger.warning("在 AD %s 建立實例時遭遇 OCI API 錯誤: %s", ad_name, e)
             return False
 
         except Exception as e:

@@ -97,137 +97,152 @@
     </div>
 
     <script>
-        async function fetchStats() {
-            const refreshing = document.getElementById('refreshing');
-            refreshing.classList.remove('hidden');
-            
-            // 嘗試多種可能的路徑
-            const paths = ['../stats.json', './stats.json', 'stats.json'];
-            let stats = null;
-            let error = null;
-
-            for (const path of paths) {
-                try {
-                    const res = await fetch(`${path}?t=${new Date().getTime()}`);
-                    if (res.ok) {
-                        stats = await res.json();
-                        break;
-                    }
-                } catch (e) {
-                    error = e;
-                }
+        class DashboardController {
+            constructor() {
+                this.charts = {};
+                this.refreshing = document.getElementById('refreshing');
+                this.lastRunDisplay = document.getElementById('lastRun');
+                this.fetchTimeout = 8000; // 8秒超時機制
+                
+                this.init();
             }
 
-            if (stats) {
-                renderDashboard(stats);
-            } else {
-                console.error("All fetch paths failed", error);
-                document.getElementById('lastRun').innerText = "連線失敗或資料尚未產生";
-                document.getElementById('lastRun').classList.add("text-red-500");
-                document.getElementById('lastRun').classList.remove("text-green-300");
+            init() {
+                this.fetchStats();
+                setInterval(() => this.fetchStats(), 60000); // 每一分鐘自動刷新
             }
-            
-            setTimeout(() => refreshing.classList.add('hidden'), 500);
-        }
 
-        let charts = {}; // 追蹤圖表實例以便銷毀重繪
+            async fetchStats() {
+                this.refreshing.classList.remove('hidden');
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.fetchTimeout);
+                
+                const paths = ['../stats.json', './stats.json', 'stats.json'];
+                let stats = null;
+                let error = null;
 
-        function renderDashboard(data) {
-            // 解析資料
-            document.getElementById('lastRun').innerText = data.last_run ? new Date(data.last_run).toLocaleString() : "N/A";
-            document.getElementById('lastRun').classList.remove("text-red-500");
-            document.getElementById('lastRun').classList.add("text-green-300");
-            
-            document.getElementById('totalRuns').innerText = data.total_runs || 0;
-            document.getElementById('successRuns').innerText = data.success_runs || 0;
-            document.getElementById('failRuns').innerText = data.fail_runs || 0;
-            document.getElementById('activeInstances').innerText = data.active_instances || 0;
-            
-            const rate = data.total_runs > 0 ? ((data.success_runs / data.total_runs) * 100).toFixed(1) : 0;
-            document.getElementById('successRate').innerText = `${rate}%`;
-
-            // 銷毀舊圖表
-            Object.values(charts).forEach(c => c.destroy());
-
-            // 1. 圓餅圖 - 區域失敗狀況
-            const regions = Object.keys(data.regions_failed || {});
-            const regionValues = Object.values(data.regions_failed || {});
-            charts.pie = new Chart(document.getElementById('regionPieChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: regions.length ? regions : ['暫無數據'],
-                    datasets: [{
-                        data: regions.length ? regionValues : [1],
-                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#8b5cf6', '#6b7280'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } }
-                }
-            });
-
-            // 2. 圓餅圖/長條圖 - 小時分佈 (新維度)
-            const hourLabels = Array.from({length: 24}, (_, i) => `${i}h`);
-            const hourData = data.hourly_distribution || {};
-            charts.bar = new Chart(document.getElementById('hourlyBarChart'), {
-                type: 'bar',
-                data: {
-                    labels: hourLabels,
-                    datasets: [
-                        {
-                            label: '成功',
-                            data: Array.from({length: 24}, (_, i) => hourData[i]?.success || 0),
-                            backgroundColor: '#4ade80'
-                        },
-                        {
-                            label: '失敗',
-                            data: Array.from({length: 24}, (_, i) => hourData[i]?.fail || 0),
-                            backgroundColor: '#f87171'
+                for (const path of paths) {
+                    try {
+                        const res = await fetch(`${path}?t=${Date.now()}`, { signal: controller.signal });
+                        if (res.ok) {
+                            stats = await res.json();
+                            break;
                         }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { stacked: true, ticks: { color: '#9ca3af' } },
-                        y: { stacked: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
-                    },
-                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } }
+                    } catch (e) {
+                        error = e;
+                    }
                 }
-            });
+                clearTimeout(timeoutId);
 
-            // 3. 折線圖 - 近期趨勢
-            const history = data.history || [];
-            charts.line = new Chart(document.getElementById('historyLineChart'), {
-                type: 'line',
-                data: {
-                    labels: history.map((_, idx) => `#${idx+1}`),
-                    datasets: [{
-                        label: 'AD 嘗試次數',
-                        data: history.map(h => h.attempts),
-                        borderColor: '#60a5fa',
-                        backgroundColor: 'rgba(96, 165, 250, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { display: false },
-                        y: { ticks: { color: '#9ca3af', stepSize: 1 }, grid: { color: '#374151' } }
-                    },
-                    plugins: { legend: { labels: { color: '#9ca3af' } } }
+                if (stats) {
+                    this.renderDashboard(stats);
+                } else {
+                    this.handleError(error);
                 }
-            });
+                
+                setTimeout(() => this.refreshing.classList.add('hidden'), 500);
+            }
+
+            handleError(error) {
+                console.error("Dashboard fetch failed:", error);
+                const isTimeout = error && error.name === 'AbortError';
+                this.lastRunDisplay.innerText = isTimeout ? "請求超時" : "連線失敗或資料尚未產生";
+                this.lastRunDisplay.classList.add("text-red-500");
+                this.lastRunDisplay.classList.remove("text-green-300");
+            }
+
+            renderDashboard(data) {
+                // 1. 基底資料填充
+                this.lastRunDisplay.innerText = data.last_run ? new Date(data.last_run).toLocaleString() : "N/A";
+                this.lastRunDisplay.classList.remove("text-red-500");
+                this.lastRunDisplay.classList.add("text-green-300");
+                
+                document.getElementById('totalRuns').innerText = data.total_runs || 0;
+                document.getElementById('successRuns').innerText = data.success_runs || 0;
+                document.getElementById('failRuns').innerText = data.fail_runs || 0;
+                document.getElementById('activeInstances').innerText = data.active_instances || 0;
+                
+                const rate = data.total_runs > 0 ? ((data.success_runs / data.total_runs) * 100).toFixed(1) : 0;
+                document.getElementById('successRate').innerText = `${rate}%`;
+
+                // 2. 銷毀舊圖表
+                Object.values(this.charts).forEach(c => c.destroy());
+
+                // 3. 重新繪製圖表
+                this._renderPieChart(data.regions_failed || {});
+                this._renderBarChart(data.hourly_distribution || {});
+                this._renderLineChart(data.history || []);
+            }
+
+            _renderPieChart(regionsData) {
+                const regions = Object.keys(regionsData);
+                const values = Object.values(regionsData);
+                this.charts.pie = new Chart(document.getElementById('regionPieChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: regions.length ? regions : ['暫無數據'],
+                        datasets: [{
+                            data: regions.length ? values : [1],
+                            backgroundColor: ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#8b5cf6', '#6b7280'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } } }
+                });
+            }
+
+            _renderBarChart(hourData) {
+                const hourLabels = Array.from({length: 24}, (_, i) => `${i}h`);
+                this.charts.bar = new Chart(document.getElementById('hourlyBarChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: hourLabels,
+                        datasets: [
+                            {
+                                label: '成功',
+                                data: Array.from({length: 24}, (_, i) => hourData[i]?.success || 0),
+                                backgroundColor: '#4ade80'
+                            },
+                            {
+                                label: '失敗',
+                                data: Array.from({length: 24}, (_, i) => hourData[i]?.fail || 0),
+                                backgroundColor: '#f87171'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { x: { stacked: true, ticks: { color: '#9ca3af' } }, y: { stacked: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
+                        plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } }
+                    }
+                });
+            }
+
+            _renderLineChart(history) {
+                this.charts.line = new Chart(document.getElementById('historyLineChart'), {
+                    type: 'line',
+                    data: {
+                        labels: history.map((_, idx) => `#${idx+1}`),
+                        datasets: [{
+                            label: 'AD 嘗試次數',
+                            data: history.map(h => h.attempts),
+                            borderColor: '#60a5fa',
+                            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { x: { display: false }, y: { ticks: { color: '#9ca3af', stepSize: 1 }, grid: { color: '#374151' } } },
+                        plugins: { legend: { labels: { color: '#9ca3af' } } }
+                    }
+                });
+            }
         }
 
-        window.onload = () => {
-            fetchStats();
-            setInterval(fetchStats, 60000); // 每一分鐘自動刷新
-        };
+        window.onload = () => new DashboardController();
     </script>
 </body>
 </html>

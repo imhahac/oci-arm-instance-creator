@@ -2,9 +2,12 @@ import os
 from dataclasses import dataclass
 from typing import List
 
-class ConfigurationError(Exception):
-    """自訂設定異常"""
-    pass
+from oracle_arm_manager.exceptions import ConfigurationError
+from oracle_arm_manager.constants import (
+    DEFAULT_OCPUS, DEFAULT_MEMORY_GBS, DEFAULT_BOOT_VOLUME_SIZE,
+    DEFAULT_BOOT_VOLUME_VPUS, DEFAULT_MAX_INSTANCES, DEFAULT_COST_THRESHOLD,
+    DEFAULT_SHAPE, MIN_BOOT_VOLUME_SIZE, MIN_OCPUS, MIN_MEMORY_GBS
+)
 
 REQUIRED_ENV_VARS: List[str] = [
     "OCI_CONFIG_USER",
@@ -18,7 +21,6 @@ REQUIRED_ENV_VARS: List[str] = [
     "OCI_CONFIG_REGION",
 ]
 
-CAPACITY_KEYWORDS: List[str] = ["capacity", "quota", "limit"]
 
 
 @dataclass
@@ -64,9 +66,22 @@ class OracleArmConfig:
             f"key_content='***HIDDEN***', "
             f"fingerprint='***HIDDEN***', "
             f"ssh_key='***HIDDEN***', "
+            f"ssh_key='***HIDDEN***', "
             f"max_instances={self.max_instances}>"
         )
-
+        
+    def validate(self) -> None:
+        """驗證所有設定值是否合法"""
+        if self.ocpus < MIN_OCPUS:
+            raise ConfigurationError(f"OCPU 數量不能小於 {MIN_OCPUS}")
+        if self.memory_gbs < MIN_MEMORY_GBS:
+            raise ConfigurationError(f"記憶體數量不能小於 {MIN_MEMORY_GBS}")
+        if self.boot_volume_size < MIN_BOOT_VOLUME_SIZE:
+            raise ConfigurationError(f"Boot Volume 大小不能小於 {MIN_BOOT_VOLUME_SIZE}GB")
+        if self.max_instances < 1:
+            raise ConfigurationError("最大實例數量不能小於 1")
+        if not self.region_list:
+            raise ConfigurationError("OCI_CONFIG_REGION 必須設定至少一個可用區域")
 
 def get_env(var_name: str, default_val: str = "") -> str:
     val = os.getenv(var_name, "").strip()
@@ -88,7 +103,7 @@ def load_config() -> OracleArmConfig:
     if not region_list:
         raise ConfigurationError("OCI_CONFIG_REGION 必須設定至少一個可用區域")
 
-    return OracleArmConfig(
+    config = OracleArmConfig(
         user=get_env("OCI_CONFIG_USER"),
         key_content=get_env("OCI_CONFIG_KEY_CONTENT"),
         fingerprint=get_env("OCI_CONFIG_FINGERPRINT"),
@@ -98,13 +113,13 @@ def load_config() -> OracleArmConfig:
         ssh_key=get_env("OCI_SSH_KEY"),
         image_id=get_env("OCI_IMAGE_ID"),
         subnet_id=get_env("OCI_SUBNET_ID"),
-        max_instances=int(get_env("OCI_MAX_INSTANCES", "1")),
-        ocpus=float(get_env("OCI_OCPUS", "4")),
-        memory_gbs=float(get_env("OCI_MEMORY_GBS", "24")),
-        boot_volume_size=int(get_env("OCI_BOOT_VOLUME_SIZE", "50")),
-        boot_volume_vpus_per_gb=int(get_env("OCI_BOOT_VOLUME_VPUS_PER_GB", "10")),
-        cost_threshold=float(get_env("OCI_COST_THRESHOLD", "0.1")),
-        shape=get_env("OCI_SHAPE", "VM.Standard.A1.Flex"),
+        max_instances=int(get_env("OCI_MAX_INSTANCES", str(DEFAULT_MAX_INSTANCES))),
+        ocpus=float(get_env("OCI_OCPUS", str(DEFAULT_OCPUS))),
+        memory_gbs=float(get_env("OCI_MEMORY_GBS", str(DEFAULT_MEMORY_GBS))),
+        boot_volume_size=int(get_env("OCI_BOOT_VOLUME_SIZE", str(DEFAULT_BOOT_VOLUME_SIZE))),
+        boot_volume_vpus_per_gb=int(get_env("OCI_BOOT_VOLUME_VPUS_PER_GB", str(DEFAULT_BOOT_VOLUME_VPUS))),
+        cost_threshold=float(get_env("OCI_COST_THRESHOLD", str(DEFAULT_COST_THRESHOLD))),
+        shape=get_env("OCI_SHAPE", DEFAULT_SHAPE),
         
         # 可配置化延遲與重試，並給定預設值
         jitter_min=float(get_env("JITTER_MIN", "0")),
@@ -115,3 +130,6 @@ def load_config() -> OracleArmConfig:
             delay_2=int(get_env("RETRY_DELAY_2", "30")),
         )
     )
+    
+    config.validate()
+    return config

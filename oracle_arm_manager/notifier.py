@@ -3,11 +3,14 @@ from typing import Optional, Dict, Any, List
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry # type: ignore
-from oracle_arm_manager.logger import logger
 
-class NotificationError(Exception):
-    """自訂通知發送錯誤"""
-    pass
+from oracle_arm_manager.logger import logger
+from oracle_arm_manager.exceptions import NotificationError
+from oracle_arm_manager.constants import (
+    COLOR_SUCCESS_HEX, COLOR_FAIL_HEX, 
+    COLOR_DISCORD_SUCCESS_INT, COLOR_DISCORD_FAIL_INT,
+    HTTP_TIMEOUT_SECONDS, HTTP_RETRY_STATUS_FORCELIST, HTTP_MAX_RETRIES
+)
 
 def _get_github_info() -> str:
     workflow = os.getenv("GITHUB_WORKFLOW", "Unknown")
@@ -23,9 +26,9 @@ class BaseNotifier:
         session = requests.Session()
         # 設定重試策略：重試 3 次，指數退避，針對分佈在 500-504 的錯誤代碼進行重試
         retries = Retry(
-            total=3, 
+            total=HTTP_MAX_RETRIES, 
             backoff_factor=2, 
-            status_forcelist=[500, 502, 503, 504],
+            status_forcelist=HTTP_RETRY_STATUS_FORCELIST,
             raise_on_status=True
         )
         session.mount("https://", HTTPAdapter(max_retries=retries))
@@ -50,7 +53,7 @@ class LineNotifier(BaseNotifier):
             logger.debug("跳過 LINE 通知: 尚未設定憑證")
             return
 
-        color = "#00ff00" if is_success else "#ff0000"
+        color = COLOR_SUCCESS_HEX if is_success else COLOR_FAIL_HEX
         payload = {
             "to": user_id,
             "messages": [{
@@ -92,7 +95,7 @@ class DiscordNotifier(BaseNotifier):
             logger.debug("跳過 Discord 通知: 尚未設定 webhook")
             return
 
-        color = 65280 if is_success else 16711680
+        color = COLOR_DISCORD_SUCCESS_INT if is_success else COLOR_DISCORD_FAIL_INT
         payload = {
             "embeds": [{
                 "title": title,

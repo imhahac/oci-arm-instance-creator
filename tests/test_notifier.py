@@ -1,7 +1,8 @@
 import pytest
 import requests
 from unittest.mock import MagicMock
-from oracle_arm_manager.notifier import LineNotifier, TelegramNotifier, DiscordNotifier, NotificationError
+from oracle_arm_manager.notifier import LineNotifier, TelegramNotifier, DiscordNotifier
+from oracle_arm_manager.exceptions import NotificationError
 
 def test_line_notifier_skip_without_token(mocker):
     mocker.patch("os.getenv", return_value=None)

@@ -9,6 +9,13 @@ from oracle_arm_manager.instance_launcher import InstanceLauncher
 from oracle_arm_manager.notifier import send_notification
 
 def write_stats(success: bool, launch_stats: Optional[Dict[str, Any]]) -> None:
+    """
+    將單次執行結果寫入/更新到 stats.json 供 Dashboard 讀取。
+    
+    Args:
+        success: 本次申請是否成功 (包含已達上限的情況)。
+        launch_stats: 從 InstanceLauncher 取得的詳細統計資料 (內含各區域嘗試狀況/錯誤分佈)。
+    """
     stats_file = "stats.json"
     
     # 預設狀態資料結構
@@ -76,6 +83,18 @@ def write_stats(success: bool, launch_stats: Optional[Dict[str, Any]]) -> None:
 
 
 def main() -> None:
+    """
+    程式的主要進入點。
+    
+    執行流程：
+    1. 讀取並驗證環境設定 (Config)
+    2. 初始化 InstanceLauncher
+    3. 遍歷區域與 AD 嘗試開立實例
+    4. 將執行結果寫出 (文字檔與 stats.json 統計資料)
+    
+    Raises:
+        Exception: 任務發生不可預期或嚴重的設定錯誤時將終止並丟出。
+    """
     try:
         logger.info("🚀 啟動重構後的 OCI ARM 自動申請程序")
         cfg = load_config()

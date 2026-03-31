@@ -1,6 +1,7 @@
 import os
 import pytest
-from oracle_arm_manager.config import get_env, validate_required_env, load_config, ConfigurationError
+from oracle_arm_manager.config import get_env, validate_required_env, load_config
+from oracle_arm_manager.exceptions import ConfigurationError
 
 def test_get_env_standard():
     os.environ["TEST_VAR"] = "hello"
