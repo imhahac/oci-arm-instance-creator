@@ -1,11 +1,11 @@
 {
-  "last_run": "2026-04-06T05:11:49.567589Z",
-  "total_runs": 149,
+  "last_run": "2026-04-06T07:10:24.182398Z",
+  "total_runs": 150,
   "success_runs": 0,
-  "fail_runs": 149,
+  "fail_runs": 150,
   "active_instances": 0,
   "regions_failed": {
-    "ap-osaka-1": 146
+    "ap-osaka-1": 147
   },
   "hourly_distribution": {
     "10": {
@@ -78,7 +78,7 @@
     },
     "7": {
       "success": 0,
-      "fail": 6
+      "fail": 7
     },
     "8": {
       "success": 0,
@@ -102,17 +102,6 @@
     }
   },
   "history": [
-    {
-      "timestamp": "2026-04-04T07:51:23.092426Z",
-      "success": false,
-      "regions_tried": [
-        "ap-osaka-1"
-      ],
-      "attempts": 1,
-      "errors": {
-        "Out of Capacity": 1
-      }
-    },
     {
       "timestamp": "2026-04-04T08:40:12.093027Z",
       "success": false,
@@ -643,6 +632,17 @@
     },
     {
       "timestamp": "2026-04-06T05:11:49.567589Z",
+      "success": false,
+      "regions_tried": [
+        "ap-osaka-1"
+      ],
+      "attempts": 1,
+      "errors": {
+        "Out of Capacity": 1
+      }
+    },
+    {
+      "timestamp": "2026-04-06T07:10:24.182398Z",
       "success": false,
       "regions_tried": [
         "ap-osaka-1"
