@@ -14,6 +14,7 @@ from oracle_arm_manager.exceptions import OciCapacityError, OciRateLimitError, O
 class LaunchResult:
     def __init__(self) -> None:
         self.success = False
+        self.quota_reached = False  # 數量已達上限，有別於「本次建立成功」
         self.logs: List[str] = []
         # 給儀表板統計用
         self.stats: Dict[str, Any] = {
@@ -128,7 +129,7 @@ class InstanceLauncher:
         if active_count >= self.config.max_instances:
             msg = f"現有 ARM 實例 {active_count}/{self.config.max_instances}，已達上限停止建立。"
             result.add_log("ALL", "ALL", msg)
-            result.success = True  # 已經達成目標，所以視為成功
+            result.quota_reached = True  # 已達上限，由 main.py 寫入 quota_reached
             result.stats["success"] = True
             logger.info("已達設定上限，任務結束。")
             return result

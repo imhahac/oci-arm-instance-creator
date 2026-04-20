@@ -74,7 +74,9 @@ jobs:
           if [ -f result.txt ]; then
             RESULT=$(cat result.txt)
             if [ "$RESULT" = "success" ]; then
-              echo "### 🟢 Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+              echo "### 🟢 Status: SUCCESS (instance created, continuing)" >> $GITHUB_STEP_SUMMARY
+            elif [ "$RESULT" = "quota_reached" ]; then
+              echo "### ✅ Status: QUOTA REACHED (all instances created, workflow will stop)" >> $GITHUB_STEP_SUMMARY
             else
               echo "### 🔴 Status: FAIL / CAPACITY / BUDGET" >> $GITHUB_STEP_SUMMARY
             fi
@@ -92,16 +94,20 @@ jobs:
              echo "### ⚠️ Status: UNKNOWN" >> $GITHUB_STEP_SUMMARY
           fi
 
-      # 步驟 7：如果註冊成功，自動停止未來的排程
+      # 步驟 7：所有目標機器都建立完成後，才自動停止排程
       - name: Auto-stop workflow on success
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ -f result.txt ]; then
             RESULT=$(cat result.txt)
-            if [ "$RESULT" = "success" ]; then
-              echo "✅ Instance created successfully! Disabling this workflow."
+            if [ "$RESULT" = "quota_reached" ]; then
+              echo "✅ All instances created! Disabling workflow to save resources."
               gh workflow disable "ARM Auto Registration"
+            elif [ "$RESULT" = "success" ]; then
+              echo "✅ Instance created. Workflow continues for remaining slots."
+            else
+              echo "⚠️ Failed to create instance. Workflow remains active."
             fi
           fi
 

@@ -151,9 +151,18 @@ def main() -> None:
         
         launch_result = launcher.run()
         success = launch_result.success
+        quota_reached = launch_result.quota_reached
+        
+        # 三種狀態：建立成功 / 達到上限 / 失敗
+        if quota_reached:
+            result_str = "quota_reached"
+        elif success:
+            result_str = "success"
+        else:
+            result_str = "fail"
         
         # 使用原子寫入供 Actions 使用
-        _atomic_write_file("result.txt", "success" if success else "fail")
+        _atomic_write_file("result.txt", result_str)
         _atomic_write_file("detailed_log.txt", "\n".join(launch_result.logs))
         
         # 原子寫入供 Dashboard 讀取
