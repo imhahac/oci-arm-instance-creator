@@ -32,7 +32,7 @@ jobs:
 
       # 步驟 3：安裝所需的 Python 套件 (OCI SDK 和 requests)
       - name: Install dependencies
-        run: pip install oci requests
+        run: pip install -r requirements.txt
 
       # 步驟 4：執行申請的主要腳本，並載入所有需要的環境變數
       - name: Run Script
