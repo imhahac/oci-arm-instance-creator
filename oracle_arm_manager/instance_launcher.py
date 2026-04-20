@@ -129,7 +129,8 @@ class InstanceLauncher:
         if active_count >= self.config.max_instances:
             msg = f"現有 ARM 實例 {active_count}/{self.config.max_instances}，已達上限停止建立。"
             result.add_log("ALL", "ALL", msg)
-            result.quota_reached = True  # 已達上限，由 main.py 寫入 quota_reached
+            result.success = True
+            result.quota_reached = True  # 觸發 workflow disable
             result.stats["success"] = True
             logger.info("已達設定上限，任務結束。")
             return result
